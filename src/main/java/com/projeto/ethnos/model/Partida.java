@@ -13,6 +13,7 @@ public class Partida {
     private int dragoesRevelados;
     private int indiceJogadorAtual;
     private boolean jogoFinalizado;
+    private List<Jogador> vencedores;
 
     public Partida(List<Jogador> jogadores, Baralho baralho, Mercado mercado, Tabuleiro tabuleiro) {
         this.jogadores = jogadores;
@@ -23,6 +24,7 @@ public class Partida {
         this.dragoesRevelados = 0;
         this.indiceJogadorAtual = 0;
         this.jogoFinalizado = false;
+        this.vencedores = new ArrayList<>();
     }
 
     public void registrarCompraDeCarta(Carta carta) {
@@ -118,14 +120,23 @@ public class Partida {
 
     public void finalizarJogo() {
         this.jogoFinalizado = true;
-        Jogador vencedor = null;
+        int maiorPontuacao = Integer.MIN_VALUE;
+        vencedores.clear();
+
         for (Jogador jogador : jogadores) {
-            if (vencedor == null || jogador.getPontuacao() > vencedor.getPontuacao()) {
-                vencedor = jogador;
+            if (jogador.getPontuacao() > maiorPontuacao) {
+                maiorPontuacao = jogador.getPontuacao();
+                vencedores.clear();
+                vencedores.add(jogador);
+            } else if (jogador.getPontuacao() == maiorPontuacao) {
+                vencedores.add(jogador);
             }
         }
-        if (vencedor != null) {
-            System.out.println("Fim do jogo! Vencedor: " + vencedor.getNome());
+
+        if (vencedores.size() == 1) {
+            System.out.println("Fim do jogo! Vencedor: " + vencedores.get(0).getNome());
+        } else if (!vencedores.isEmpty()) {
+            System.out.println("Fim do jogo com empate entre: " + getNomesVencedores());
         }
     }
 
@@ -136,6 +147,19 @@ public class Partida {
     public List<Jogador> getJogadores() { return jogadores; }
     public Baralho getBaralho() { return baralho; }
     public Mercado getMercado() { return mercado; }
+    public List<Jogador> getVencedores() { return List.copyOf(vencedores); }
+    public boolean isEmpateFinal() { return vencedores.size() > 1; }
+
+    public String getNomesVencedores() {
+        StringBuilder nomes = new StringBuilder();
+        for (int i = 0; i < vencedores.size(); i++) {
+            nomes.append(vencedores.get(i).getNome());
+            if (i < vencedores.size() - 1) {
+                nomes.append(", ");
+            }
+        }
+        return nomes.toString();
+    }
     
     public void iniciarJogadaDoBando(Jogador j, List<Carta> bando, Carta lider, Regiao regiaoEscolhida) {
         if (jogoFinalizado || j == null || bando == null || bando.isEmpty() || lider == null) {

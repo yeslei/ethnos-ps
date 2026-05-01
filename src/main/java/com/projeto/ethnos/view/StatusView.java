@@ -63,7 +63,14 @@ public class StatusView extends VBox {
         if (partidaModel.isJogoFinalizado()) {
             Label encerrado = new Label("Jogo encerrado");
             encerrado.setStyle("-fx-text-fill: #B71C1C; -fx-font-weight: bold;");
-            this.getChildren().addAll(new Separator(), encerrado);
+            Label resultadoFinal;
+            if (partidaModel.isEmpateFinal()) {
+                resultadoFinal = new Label("Empate: " + partidaModel.getNomesVencedores());
+            } else {
+                resultadoFinal = new Label("Vencedor: " + partidaModel.getNomesVencedores());
+            }
+            resultadoFinal.setStyle("-fx-font-weight: bold;");
+            this.getChildren().addAll(new Separator(), encerrado, resultadoFinal);
         }
     }
 }

@@ -59,17 +59,6 @@ public class MaoView extends VBox {
             // Guardamos a referência da carta desenhada
             this.cartasVisuaisExibidas.add(visualCarta); 
 
-            // Melhoria de UX: seleção única na mão (evita confusão visual).
-            visualCarta.addEventHandler(MouseEvent.MOUSE_CLICKED, e -> {
-                if (visualCarta.isSelecionada()) {
-                    for (CartaView outra : cartasVisuaisExibidas) {
-                        if (outra != visualCarta) {
-                            outra.setSelecionada(false);
-                        }
-                    }
-                }
-            });
-
             // Melhoria de UX: ao clicar numa carta, ela vira líder automaticamente.
             visualCarta.addEventHandler(MouseEvent.MOUSE_CLICKED, e -> {
                 if (visualCarta.isSelecionada()) {
