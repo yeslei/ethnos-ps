@@ -2,6 +2,7 @@ package com.projeto.ethnos.model;
 
 import java.util.List;
 import java.util.ArrayList;
+import java.util.Comparator;
 
 public class Partida {
     private List<Jogador> jogadores;
@@ -228,15 +229,67 @@ public class Partida {
             return;
         }
 
-        // IA básica: tenta jogar um bando de 1 carta; se não conseguir, recruta do topo.
+        // Melhoria: a IA agora tenta formar o maior bando válido possível
+        // antes de simplesmente baixar a primeira carta da mão.
         if (!ia.mao.isEmpty()) {
-            Carta lider = ia.mao.get(0);
-            Regiao destino = tabuleiro.getRegiao(lider.cor);
-            List<Carta> bando = List.of(lider);
-            iniciarJogadaDoBando(ia, bando, lider, destino != null ? destino : tabuleiro.getTodasRegioes().get(0));
+            JogadaIA jogada = escolherMelhorJogadaIA(ia);
+            iniciarJogadaDoBando(ia, jogada.bando(), jogada.lider(), jogada.regiao());
         } else {
-            comprarAliado(ia, null);
+            comprarAliado(ia, escolherCartaMercadoParaIA(ia));
         }
+    }
+
+    private JogadaIA escolherMelhorJogadaIA(Jogador ia) {
+        Carta melhorLider = ia.mao.get(0);
+        List<Carta> melhorBando = List.of(melhorLider);
+
+        for (Carta candidata : ia.mao) {
+            List<Carta> bandoAtual = new ArrayList<>();
+            for (Carta carta : ia.mao) {
+                boolean combinaCor = carta.cor.equalsIgnoreCase(candidata.cor);
+                boolean combinaTribo = carta.tribo.equalsIgnoreCase(candidata.tribo);
+                if (combinaCor || combinaTribo) {
+                    bandoAtual.add(carta);
+                }
+            }
+
+            if (bandoAtual.size() > melhorBando.size()) {
+                melhorLider = candidata;
+                melhorBando = bandoAtual;
+            }
+        }
+
+        Regiao destino = escolherMelhorRegiaoParaIA(melhorLider);
+        return new JogadaIA(melhorLider, melhorBando, destino);
+    }
+
+    private Regiao escolherMelhorRegiaoParaIA(Carta lider) {
+        Regiao regiaoDaCor = tabuleiro.getRegiao(lider.cor);
+        if (regiaoDaCor != null) {
+            return regiaoDaCor;
+        }
+
+        // Caso a cor da carta não tenha correspondência direta, escolhemos a região
+        // com maior pontuação base disponível.
+        return tabuleiro.getTodasRegioes().stream()
+            .max(Comparator.comparingInt(regiao -> regiao.getPontuacao(0)))
+            .orElse(tabuleiro.getTodasRegioes().get(0));
+    }
+
+    private Carta escolherCartaMercadoParaIA(Jogador ia) {
+        for (Carta cartaMercado : mercado.getCartasDisponiveis()) {
+            for (Carta cartaMao : ia.mao) {
+                boolean combinaCor = cartaMercado.cor.equalsIgnoreCase(cartaMao.cor);
+                boolean combinaTribo = cartaMercado.tribo.equalsIgnoreCase(cartaMao.tribo);
+                if (combinaCor || combinaTribo) {
+                    return cartaMercado;
+                }
+            }
+        }
+        return null;
+    }
+
+    private record JogadaIA(Carta lider, List<Carta> bando, Regiao regiao) {
     }
 
     private void proximoJogador() {
