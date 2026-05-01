@@ -113,6 +113,11 @@ public class EthnosApp extends Application {
         // Setup do Baralho com cartas fixas.
         // Bug corrigido: removemos dependência de aleatoriedade no setup inicial do mercado.
         Baralho baralho = new Baralho();
+        // BUG corrigido: como a compra é do "topo" (fim da lista), os Dragões estavam vindo primeiro
+        // e isso encerrava a era imediatamente. Aqui colocamos os Dragões no fundo do baralho.
+        baralho.adicionarCarta(new Carta("Dragão", "Cinza", "Dragão"));
+        baralho.adicionarCarta(new Carta("Dragão", "Vermelho", "Dragão"));
+        baralho.adicionarCarta(new Carta("Dragão", "Verde", "Dragão"));
         baralho.adicionarCarta(new Carta("Anão", "Vermelho", "Anão"));
         baralho.adicionarCarta(new Carta("Elfo", "Verde", "Elfo"));
         baralho.adicionarCarta(new Carta("Minotauro", "Vermelho", "Minotauro"));
@@ -120,10 +125,8 @@ public class EthnosApp extends Application {
         baralho.adicionarCarta(new Carta("Esqueleto", "Azul", "Esqueleto"));
         baralho.adicionarCarta(new Carta("Gigante", "Roxo", "Gigante"));
         baralho.adicionarCarta(new Carta("Mago", "Cinza", "Mago"));
-        baralho.adicionarCarta(new Carta("Dragão", "Cinza", "Dragão"));
-        baralho.adicionarCarta(new Carta("Dragão", "Vermelho", "Dragão"));
-        baralho.adicionarCarta(new Carta("Dragão", "Verde", "Dragão"));
-        baralho.setupInicial(false); 
+        // Agora embaralhamos para o jogo não ficar previsível.
+        baralho.setupInicial(true); 
 
         this.mercado = new Mercado(); 
         

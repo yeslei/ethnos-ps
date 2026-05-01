@@ -66,6 +66,14 @@ No seu turno, você pode:
   - as **mãos dos jogadores são descartadas**;
   - as cartas descartadas podem ser **recicladas** para o baralho automaticamente quando o baralho acabar.
 
+### Baralho
+
+- O baralho é **embaralhado** no início da partida.
+
+### Rodadas
+
+- A aplicação exibe um contador de **rodada** (a rodada aumenta quando todos os jogadores jogam uma vez).
+
 ## Interface
 
 - **Topo**: mercado + deck de compra

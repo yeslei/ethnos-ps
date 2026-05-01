@@ -15,6 +15,7 @@ public class Partida {
     private int indiceJogadorAtual;
     private boolean jogoFinalizado;
     private List<Jogador> vencedores;
+    private int rodadaAtual;
 
     public Partida(List<Jogador> jogadores, Baralho baralho, Mercado mercado, Tabuleiro tabuleiro) {
         this.jogadores = jogadores;
@@ -26,6 +27,7 @@ public class Partida {
         this.indiceJogadorAtual = 0;
         this.jogoFinalizado = false;
         this.vencedores = new ArrayList<>();
+        this.rodadaAtual = 1;
     }
 
     public void registrarCompraDeCarta(Carta carta) {
@@ -49,15 +51,14 @@ public class Partida {
 
         eraAtual++;
         dragoesRevelados = 0;
-        finalizarSetupDeNovaEra();
         revelarCartasIniciais();
     }
 
-    private void finalizarSetupDeNovaEra() {
-        // Essencial: garante estado consistente no início de uma era.
-        // - Mercado começa limpo (cartas abertas são reveladas novamente).
-        // - Mãos antigas são descartadas para evitar acúmulo infinito.
-        // Observação: não mexemos nos marcadores do tabuleiro (eles representam controle/presença).
+    private void finalizarEra() {
+        // Essencial: a limpeza acontece NO FIM da era, não no início.
+        // - descarta as cartas abertas do mercado
+        // - descarta a mão de todos os jogadores
+        // Observação: os marcadores no tabuleiro permanecem (representam presença/controle).
         baralho.descartarCartas(mercado.retirarTodas());
         for (Jogador jogador : jogadores) {
             baralho.descartarCartas(new ArrayList<>(jogador.mao));
@@ -67,7 +68,7 @@ public class Partida {
 
     public List<Carta> revelarCartasIniciais() {
         List<Carta> reveladas = new ArrayList<>();
-        while (mercado.getCartasDisponiveis().size() < 5 && !baralho.estaVazio()) {
+        while (mercado.getCartasDisponiveis().size() < 5 && !baralho.semCartasDisponiveis()) {
             Carta topo = baralho.comprarDoTopo();
             if (topo == null) {
                 break;
@@ -107,8 +108,11 @@ public class Partida {
             jogador.mao.add(cartaComprada);
             registrarCompraDeCarta(cartaComprada);
             revelarCartasIniciais();
-            proximoJogador();
         }
+
+        // BUG corrigido: mesmo se não houver carta para comprar, o turno precisa terminar.
+        // Caso contrário, a IA (ou o humano) fica "preso" e pode tentar comprar em loop.
+        proximoJogador();
     }
 
     public void verificarFimDeEra() {
@@ -116,7 +120,10 @@ public class Partida {
             return;
         }
 
-        if (dragoesRevelados >= 3 || baralho.estaVazio()) {
+        // BUG corrigido: o baralho "não acabou" se ainda existe descarte para reciclar.
+        if (dragoesRevelados >= 3 || baralho.semCartasDisponiveis()) {
+            finalizarEra();
+
             // Essencial: pontuação de fim de era por ranking de fichas em cada região.
             // Implementação: conta marcadores por jogador e aplica valoresPontuacao por posição.
             for (Regiao regiao : tabuleiro.getTodasRegioes()) {
@@ -160,6 +167,7 @@ public class Partida {
 
     public int getDragoesRevelados() { return dragoesRevelados; }
     public int getEraAtual() { return eraAtual; }
+    public int getRodadaAtual() { return rodadaAtual; }
     public boolean isJogoFinalizado() { return jogoFinalizado; }
     public Jogador getJogadorAtual() { return jogadores.get(indiceJogadorAtual); }
     public List<Jogador> getJogadores() { return jogadores; }
@@ -340,7 +348,12 @@ public class Partida {
 
     private void proximoJogador() {
         if (!jogadores.isEmpty()) {
+            int anterior = indiceJogadorAtual;
             indiceJogadorAtual = (indiceJogadorAtual + 1) % jogadores.size();
+            // Incrementa rodada quando volta ao primeiro jogador (ciclo completo).
+            if (anterior == jogadores.size() - 1 && indiceJogadorAtual == 0) {
+                rodadaAtual++;
+            }
         }
     }
 
