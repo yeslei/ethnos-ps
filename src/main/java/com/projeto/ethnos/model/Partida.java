@@ -49,7 +49,20 @@ public class Partida {
 
         eraAtual++;
         dragoesRevelados = 0;
+        finalizarSetupDeNovaEra();
         revelarCartasIniciais();
+    }
+
+    private void finalizarSetupDeNovaEra() {
+        // Essencial: garante estado consistente no início de uma era.
+        // - Mercado começa limpo (cartas abertas são reveladas novamente).
+        // - Mãos antigas são descartadas para evitar acúmulo infinito.
+        // Observação: não mexemos nos marcadores do tabuleiro (eles representam controle/presença).
+        baralho.descartarCartas(mercado.retirarTodas());
+        for (Jogador jogador : jogadores) {
+            baralho.descartarCartas(new ArrayList<>(jogador.mao));
+            jogador.mao.clear();
+        }
     }
 
     public List<Carta> revelarCartasIniciais() {

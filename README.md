@@ -55,6 +55,16 @@ No seu turno, você pode:
 - Poder do líder é aplicado durante a jogada do bando.
 - O mercado inicial é previsível (setup fixo), sem sorteio aleatório inicial.
 - Em modo contra IA, os turnos da IA são executados automaticamente.
+- Limite de mão: **10 cartas** (se atingir, é necessário jogar bando antes de recrutar).
+
+### Transição de era (essencial)
+
+- A era termina quando **3 dragões** são revelados (ou se não houver mais cartas para revelar).
+- No fim da era:
+  - é calculada a pontuação por região usando o **ranking de fichas** (1º/2º/3º) e os `valoresPontuacao` da região;
+  - o **mercado é limpo**;
+  - as **mãos dos jogadores são descartadas**;
+  - as cartas descartadas podem ser **recicladas** para o baralho automaticamente quando o baralho acabar.
 
 ## Interface
 

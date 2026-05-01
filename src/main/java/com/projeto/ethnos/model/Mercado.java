@@ -31,4 +31,10 @@ public class Mercado {
     public List<Carta> getCartasDisponiveis() {
         return cartasAbertas;
     }
+
+    public List<Carta> retirarTodas() {
+        List<Carta> todas = new ArrayList<>(cartasAbertas);
+        cartasAbertas.clear();
+        return todas;
+    }
 }
