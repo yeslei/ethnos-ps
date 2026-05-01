@@ -7,6 +7,7 @@ import javafx.geometry.Pos;
 import javafx.scene.control.Label;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.VBox;
+import javafx.scene.input.MouseEvent;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -51,6 +52,17 @@ public class MercadoView extends HBox {
             CartaView visualCarta = new CartaView(c);
             this.getChildren().add(visualCarta);
             this.cartasVisuais.add(visualCarta);
+
+            // Melhoria de UX: seleção única no mercado (evita comprar a carta errada).
+            visualCarta.addEventHandler(MouseEvent.MOUSE_CLICKED, e -> {
+                if (visualCarta.isSelecionada()) {
+                    for (CartaView outra : cartasVisuais) {
+                        if (outra != visualCarta) {
+                            outra.setSelecionada(false);
+                        }
+                    }
+                }
+            });
         }
 
         // Adiciona o deck sempre por último na tela

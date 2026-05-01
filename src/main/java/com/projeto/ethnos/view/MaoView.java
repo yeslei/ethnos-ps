@@ -7,6 +7,7 @@ import javafx.geometry.Pos;
 import javafx.scene.control.Button;
 import javafx.scene.control.ComboBox;
 import javafx.scene.control.Label;
+import javafx.scene.input.MouseEvent;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.VBox;
 
@@ -54,6 +55,17 @@ public class MaoView extends VBox {
             
             // Guardamos a referência da carta desenhada
             this.cartasVisuaisExibidas.add(visualCarta); 
+
+            // Melhoria de UX: seleção única na mão (evita confusão visual).
+            visualCarta.addEventHandler(MouseEvent.MOUSE_CLICKED, e -> {
+                if (visualCarta.isSelecionada()) {
+                    for (CartaView outra : cartasVisuaisExibidas) {
+                        if (outra != visualCarta) {
+                            outra.setSelecionada(false);
+                        }
+                    }
+                }
+            });
         }
 
         this.comboLider.getItems().setAll(jogadorModel.mao);

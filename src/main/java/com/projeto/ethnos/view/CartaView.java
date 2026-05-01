@@ -7,6 +7,7 @@ import javafx.scene.layout.StackPane;
 import javafx.scene.layout.VBox;
 import javafx.scene.paint.Color;
 import javafx.scene.shape.Rectangle;
+import javafx.scene.input.MouseEvent;
 
 public class CartaView extends StackPane {
     
@@ -39,7 +40,9 @@ public class CartaView extends StackPane {
         // --- NOVOS EVENTOS DE MOUSE ---
         
         // Evento de Clique para Selecionar/Deselecionar
-        this.setOnMouseClicked(e -> toggleSelecao());
+        // Usando addEventHandler para permitir que a View "pai" adicione lógica extra
+        // (ex.: seleção única) sem sobrescrever este clique.
+        this.addEventHandler(MouseEvent.MOUSE_CLICKED, e -> toggleSelecao());
 
         // Ajuste no Hover para não apagar a seleção
         this.setOnMouseEntered(e -> { if (!selecionada) fundo.setStrokeWidth(3); });
@@ -48,16 +51,7 @@ public class CartaView extends StackPane {
 
     // Método que altera o visual quando clicado
     private void toggleSelecao() {
-        selecionada = !selecionada;
-        if (selecionada) {
-            fundo.setStroke(Color.DODGERBLUE);
-            fundo.setStrokeWidth(4);
-            this.setTranslateY(-15); // Efeito visual: carta sobe um pouco
-        } else {
-            fundo.setStroke(Color.BLACK);
-            fundo.setStrokeWidth(1);
-            this.setTranslateY(0); // Carta volta pra posição original
-        }
+        setSelecionada(!selecionada);
     }
 
     private Color obterCorVisual(String corTexto) {
@@ -77,4 +71,17 @@ public class CartaView extends StackPane {
     
     // Novo getter para o Controller saber se ela está selecionada
     public boolean isSelecionada() { return selecionada; }
+
+    public void setSelecionada(boolean selecionada) {
+        this.selecionada = selecionada;
+        if (selecionada) {
+            fundo.setStroke(Color.DODGERBLUE);
+            fundo.setStrokeWidth(4);
+            this.setTranslateY(-15); // Efeito visual: carta sobe um pouco
+        } else {
+            fundo.setStroke(Color.BLACK);
+            fundo.setStrokeWidth(1);
+            this.setTranslateY(0); // Carta volta pra posição original
+        }
+    }
 }
