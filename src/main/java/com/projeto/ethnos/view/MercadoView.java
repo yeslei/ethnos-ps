@@ -82,4 +82,10 @@ public class MercadoView extends HBox {
         }
         return null;
     }
+
+    public void limparSelecao() {
+        for (CartaView cartaView : cartasVisuais) {
+            cartaView.setSelecionada(false);
+        }
+    }
 }

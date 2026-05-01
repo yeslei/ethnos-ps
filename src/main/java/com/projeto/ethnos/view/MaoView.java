@@ -107,4 +107,10 @@ public class MaoView extends VBox {
         }
         return selecionadas;
     }
+
+    public void limparSelecaoCartas() {
+        for (CartaView cv : cartasVisuaisExibidas) {
+            cv.setSelecionada(false);
+        }
+    }
 }

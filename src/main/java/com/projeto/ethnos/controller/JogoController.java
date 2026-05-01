@@ -76,6 +76,10 @@ public class JogoController {
             return;
         }
 
+        // Melhoria: evita que seleções antigas "vazem" para o próximo turno.
+        maoView.limparSelecaoCartas();
+        mercadoView.limparSelecao();
+
         atualizarTelas();
         executarTurnoIASeNecessario();
     }
@@ -97,6 +101,9 @@ public class JogoController {
             mostrarAviso("Ação não permitida", ex.getMessage());
             return;
         }
+
+        // Melhoria: ao recrutar, limpamos a seleção do mercado.
+        mercadoView.limparSelecao();
         
         atualizarTelas();
         executarTurnoIASeNecessario();
