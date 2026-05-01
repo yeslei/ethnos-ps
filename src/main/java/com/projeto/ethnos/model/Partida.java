@@ -81,7 +81,15 @@ public class Partida {
 
     private List<Carta> revelarCartasIniciais(boolean ignorarDragoes) {
         List<Carta> reveladas = new ArrayList<>();
+        // Segurança: se durante o setup só existirem Dragões disponíveis, não podemos ficar em loop infinito
+        // tentando completar o mercado. Limitamos o número de compras com base no tamanho do monte+descarte.
+        int limiteCompras = baralho.qntdRestante() + baralho.qntdDescarte() + 10;
+        int comprasFeitas = 0;
         while (mercado.getCartasDisponiveis().size() < 5 && !baralho.semCartasDisponiveis()) {
+            if (comprasFeitas++ >= limiteCompras) {
+                ultimaAcao = "Setup: não foi possível completar o mercado sem Dragões";
+                break;
+            }
             Carta topo = baralho.comprarDoTopo();
             if (topo == null) {
                 break;
