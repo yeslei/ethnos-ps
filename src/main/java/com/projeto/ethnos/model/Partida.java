@@ -480,4 +480,36 @@ public class Partida {
             jogador.distribuirFicha(null);
         }
     }
+
+    public void distribuirMaosIniciais() {
+        // Assunção de MVP: mão inicial varia com número de jogadores.
+        // (Isso evita começar com "2 cartas fixas" e deixa o jogo mais consistente.)
+        int qtdJogadores = jogadores.size();
+        int cartasPorJogador;
+        if (qtdJogadores <= 2) {
+            cartasPorJogador = 6;
+        } else if (qtdJogadores <= 4) {
+            cartasPorJogador = 5;
+        } else {
+            cartasPorJogador = 4;
+        }
+
+        for (Jogador jogador : jogadores) {
+            while (jogador.mao.size() < cartasPorJogador && !baralho.semCartasDisponiveis()) {
+                Carta comprada = baralho.comprarDoTopo();
+                if (comprada == null) {
+                    break;
+                }
+                if ("Dragão".equalsIgnoreCase(comprada.tribo)) {
+                    // Dragões são revelados e descartados, nunca entram na mão inicial.
+                    baralho.descartarCarta(comprada);
+                    registrarCompraDeCarta(comprada);
+                    continue;
+                }
+                jogador.mao.add(comprada);
+            }
+        }
+
+        ultimaAcao = "Mãos iniciais distribuídas (" + cartasPorJogador + " cartas por jogador)";
+    }
 }

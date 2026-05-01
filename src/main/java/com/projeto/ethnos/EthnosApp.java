@@ -149,15 +149,10 @@ public class EthnosApp extends Application {
             jogadores.add(new Jogador(nome, ehIa));
         }
 
-        // Estado inicial da mão do jogador
-        this.jogadorPrincipal.mao.addAll(Arrays.asList(
-            new Carta("Anão", "Vermelho", "Anão"),
-            new Carta("Troll", "Cinza", "Troll")
-        ));
-
         // Instancia a partida que gerencia o fluxo global
         partida = new Partida(jogadores, baralho, mercado, tabuleiro);
-        partida.distribuirFichas(); 
+        partida.distribuirFichas();
+        partida.distribuirMaosIniciais();
         partida.iniciarEra();
     }
 
