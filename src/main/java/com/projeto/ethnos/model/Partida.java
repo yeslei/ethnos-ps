@@ -81,6 +81,9 @@ public class Partida {
             if (!"Dragão".equalsIgnoreCase(topo.tribo)) {
                 mercado.adicionarCartas(List.of(topo));
                 reveladas.add(topo);
+            } else {
+                // BUG corrigido: Dragões revelados no refill precisam ir para o descarte.
+                baralho.descartarCarta(topo);
             }
             if (jogoFinalizado) {
                 break;
@@ -109,9 +112,19 @@ public class Partida {
         }
 
         if (cartaComprada != null) {
-            jogador.mao.add(cartaComprada);
-            registrarCompraDeCarta(cartaComprada);
+            if ("Dragão".equalsIgnoreCase(cartaComprada.tribo)) {
+                // BUG corrigido: Dragões não entram na mão; eles são revelados e vão para o descarte.
+                baralho.descartarCarta(cartaComprada);
+                registrarCompraDeCarta(cartaComprada);
+                ultimaAcao = "Dragão revelado ao recrutar (contador: " + dragoesRevelados + ")";
+            } else {
+                jogador.mao.add(cartaComprada);
+                registrarCompraDeCarta(cartaComprada);
+                ultimaAcao = "Recrutou " + cartaComprada + " para a mão";
+            }
             revelarCartasIniciais();
+        } else {
+            ultimaAcao = "Sem cartas para recrutar";
         }
 
         // BUG corrigido: mesmo se não houver carta para comprar, o turno precisa terminar.
@@ -296,6 +309,51 @@ public class Partida {
                 dragoesRevelados = Math.max(0, dragoesRevelados - 1);
                 ultimaAcao = "Poder (Dragão): reduz contador de dragões para " + dragoesRevelados;
                 break;
+            case "centauro":
+                // Compra 1 carta do topo (respeitando limite de mão e regras de dragões).
+                comprarCartaTopoParaMao(jogador);
+                break;
+            case "minotauro":
+                // Bônus simples de agressividade.
+                jogador.adicionarPontos(2);
+                ultimaAcao = "Poder (Minotauro): +" + 2 + " pontos para " + jogador.getNome();
+                break;
+            case "esqueleto":
+                // MVP: efeito simples (dreno simbólico).
+                Jogador alvo = escolherAlvoParaEsqueleto(jogador);
+                if (alvo != null) {
+                    jogador.adicionarPontos(1);
+                    ultimaAcao = "Poder (Esqueleto): +" + 1 + " ponto (dreno de " + alvo.getNome() + ")";
+                } else {
+                    ultimaAcao = "Poder (Esqueleto): sem alvo";
+                }
+                break;
+            case "mago":
+                // Compra 1 carta do mercado (primeira); se vazio, compra do topo.
+                Carta mercadoCarta = mercado.comprarCarta();
+                if (mercadoCarta != null) {
+                    if ("Dragão".equalsIgnoreCase(mercadoCarta.tribo)) {
+                        baralho.descartarCarta(mercadoCarta);
+                        registrarCompraDeCarta(mercadoCarta);
+                        ultimaAcao = "Poder (Mago): revelou Dragão no mercado";
+                    } else if (jogador.mao.size() < LIMITE_MAO) {
+                        jogador.mao.add(mercadoCarta);
+                        ultimaAcao = "Poder (Mago): comprou do mercado " + mercadoCarta;
+                    } else {
+                        baralho.descartarCarta(mercadoCarta);
+                        ultimaAcao = "Poder (Mago): mão cheia, carta do mercado foi descartada";
+                    }
+                } else {
+                    comprarCartaTopoParaMao(jogador);
+                }
+                revelarCartasIniciais();
+                break;
+            case "troll":
+                // +1 ponto por carta do bando (mínimo 1)
+                int bonus = Math.max(1, bando != null ? bando.size() : 1);
+                jogador.adicionarPontos(bonus);
+                ultimaAcao = "Poder (Troll): +" + bonus + " pontos para " + jogador.getNome();
+                break;
             default:
                 ultimaAcao = "Poder (" + lider.tribo + "): sem efeito implementado";
                 break;
@@ -303,6 +361,35 @@ public class Partida {
 
         turnoPowerJogador = jogador;
         turnoPowerRodada = rodadaAtual;
+    }
+
+    private void comprarCartaTopoParaMao(Jogador jogador) {
+        if (jogador.mao.size() >= LIMITE_MAO) {
+            ultimaAcao = "Poder: mão cheia (limite 10), sem compra";
+            return;
+        }
+        Carta comprada = baralho.comprarDoTopo();
+        if (comprada == null) {
+            ultimaAcao = "Poder: sem cartas para comprar";
+            return;
+        }
+        if ("Dragão".equalsIgnoreCase(comprada.tribo)) {
+            baralho.descartarCarta(comprada);
+            registrarCompraDeCarta(comprada);
+            ultimaAcao = "Poder: revelou Dragão (contador: " + dragoesRevelados + ")";
+            return;
+        }
+        jogador.mao.add(comprada);
+        ultimaAcao = "Poder: comprou " + comprada + " do topo";
+    }
+
+    private Jogador escolherAlvoParaEsqueleto(Jogador atual) {
+        for (Jogador j : jogadores) {
+            if (j != atual) {
+                return j;
+            }
+        }
+        return null;
     }
 
     public void jogarTurnoIA() {
