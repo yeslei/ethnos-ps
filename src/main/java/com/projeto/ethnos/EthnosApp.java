@@ -118,13 +118,33 @@ public class EthnosApp extends Application {
         baralho.adicionarCarta(new Carta("Dragão", "Cinza", "Dragão"));
         baralho.adicionarCarta(new Carta("Dragão", "Vermelho", "Dragão"));
         baralho.adicionarCarta(new Carta("Dragão", "Verde", "Dragão"));
+        // Aumentamos a quantidade de cartas não-Dragão para evitar travas no setup
+        // e garantir mercado/mãos iniciais consistentes.
         baralho.adicionarCarta(new Carta("Anão", "Vermelho", "Anão"));
+        baralho.adicionarCarta(new Carta("Anão", "Vermelho", "Anão"));
+        baralho.adicionarCarta(new Carta("Anão", "Vermelho", "Anão"));
+
         baralho.adicionarCarta(new Carta("Elfo", "Verde", "Elfo"));
+        baralho.adicionarCarta(new Carta("Elfo", "Verde", "Elfo"));
+        baralho.adicionarCarta(new Carta("Elfo", "Verde", "Elfo"));
+
         baralho.adicionarCarta(new Carta("Minotauro", "Vermelho", "Minotauro"));
+        baralho.adicionarCarta(new Carta("Minotauro", "Vermelho", "Minotauro"));
+
         baralho.adicionarCarta(new Carta("Centauro", "Amarelo", "Centauro"));
+        baralho.adicionarCarta(new Carta("Centauro", "Amarelo", "Centauro"));
+
         baralho.adicionarCarta(new Carta("Esqueleto", "Azul", "Esqueleto"));
+        baralho.adicionarCarta(new Carta("Esqueleto", "Azul", "Esqueleto"));
+
         baralho.adicionarCarta(new Carta("Gigante", "Roxo", "Gigante"));
+        baralho.adicionarCarta(new Carta("Gigante", "Roxo", "Gigante"));
+
         baralho.adicionarCarta(new Carta("Mago", "Cinza", "Mago"));
+        baralho.adicionarCarta(new Carta("Mago", "Cinza", "Mago"));
+
+        baralho.adicionarCarta(new Carta("Troll", "Cinza", "Troll"));
+        baralho.adicionarCarta(new Carta("Troll", "Cinza", "Troll"));
         // Agora embaralhamos para o jogo não ficar previsível.
         baralho.setupInicial(true); 
 
