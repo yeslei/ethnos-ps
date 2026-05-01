@@ -30,6 +30,8 @@ public class StatusView extends VBox {
         Label lblEra = new Label("Era: " + partidaModel.getEraAtual());
         Label lblRodada = new Label("Rodada: " + partidaModel.getRodadaAtual());
         Label lblTurno = new Label("Vez: " + partidaModel.getJogadorAtual().getNome());
+        Label lblUltimaAcao = new Label("Última ação: " + partidaModel.getUltimaAcao());
+        lblUltimaAcao.setWrapText(true);
         Label lblDica = new Label("Dica: escolha região no tabuleiro e líder na mão.");
         lblDica.setTextFill(Color.DARKSLATEGRAY);
 
@@ -41,7 +43,7 @@ public class StatusView extends VBox {
         barraProgresso.setPrefWidth(180);
         if (dragoes >= 2) barraProgresso.setStyle("-fx-accent: red;");
 
-        this.getChildren().addAll(titulo, lblEra, lblRodada, lblTurno, lblDica, new Separator(), lblDragoes, barraProgresso);
+        this.getChildren().addAll(titulo, lblEra, lblRodada, lblTurno, lblUltimaAcao, lblDica, new Separator(), lblDragoes, barraProgresso);
 
         // Lista de Jogadores e Pontos
         Label lblJogadores = new Label("Jogadores:");

@@ -16,6 +16,9 @@ public class Partida {
     private boolean jogoFinalizado;
     private List<Jogador> vencedores;
     private int rodadaAtual;
+    private String ultimaAcao;
+    private int turnoPowerRodada = -1;
+    private Jogador turnoPowerJogador = null;
 
     public Partida(List<Jogador> jogadores, Baralho baralho, Mercado mercado, Tabuleiro tabuleiro) {
         this.jogadores = jogadores;
@@ -28,6 +31,7 @@ public class Partida {
         this.jogoFinalizado = false;
         this.vencedores = new ArrayList<>();
         this.rodadaAtual = 1;
+        this.ultimaAcao = "Partida iniciada";
     }
 
     public void registrarCompraDeCarta(Carta carta) {
@@ -168,6 +172,7 @@ public class Partida {
     public int getDragoesRevelados() { return dragoesRevelados; }
     public int getEraAtual() { return eraAtual; }
     public int getRodadaAtual() { return rodadaAtual; }
+    public String getUltimaAcao() { return ultimaAcao; }
     public boolean isJogoFinalizado() { return jogoFinalizado; }
     public Jogador getJogadorAtual() { return jogadores.get(indiceJogadorAtual); }
     public List<Jogador> getJogadores() { return jogadores; }
@@ -250,6 +255,13 @@ public class Partida {
             return;
         }
 
+        // BUG corrigido: evitamos aplicar o poder mais de uma vez no mesmo turno do jogador.
+        // (O poder já é aplicado automaticamente ao jogar o bando; o botão serve como "teste" manual.)
+        if (turnoPowerJogador == jogador && turnoPowerRodada == rodadaAtual) {
+            ultimaAcao = "Poder já foi usado neste turno (" + jogador.getNome() + ")";
+            return;
+        }
+
         // Comentário de bugfix: antes o método ativaPoder() não fazia nada no fluxo real.
         // Agora o poder do líder gera efeito concreto de partida.
         lider.ativaPoder();
@@ -257,21 +269,29 @@ public class Partida {
         switch (tribo) {
             case "anão":
                 jogador.adicionarPontos(1);
+                ultimaAcao = "Poder (Anão): +" + 1 + " ponto para " + jogador.getNome();
                 break;
             case "gigante":
                 jogador.adicionarPontos(2);
+                ultimaAcao = "Poder (Gigante): +" + 2 + " pontos para " + jogador.getNome();
                 break;
             case "elfo":
                 if (!bando.isEmpty()) {
                     jogador.mao.add(bando.get(0));
                 }
+                ultimaAcao = "Poder (Elfo): recupera 1 carta para a mão de " + jogador.getNome();
                 break;
             case "dragão":
                 dragoesRevelados = Math.max(0, dragoesRevelados - 1);
+                ultimaAcao = "Poder (Dragão): reduz contador de dragões para " + dragoesRevelados;
                 break;
             default:
+                ultimaAcao = "Poder (" + lider.tribo + "): sem efeito implementado";
                 break;
         }
+
+        turnoPowerJogador = jogador;
+        turnoPowerRodada = rodadaAtual;
     }
 
     public void jogarTurnoIA() {

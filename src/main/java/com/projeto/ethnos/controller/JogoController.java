@@ -122,6 +122,7 @@ public class JogoController {
             return;
         }
         partida.aplicarPoderDoLider(jogadorDaVez, lider, List.of(lider), regiao);
+        mostrarInfo("Poder do líder", partida.getUltimaAcao());
         atualizarTelas();
     }
 
