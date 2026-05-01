@@ -276,10 +276,21 @@ public class Partida {
                 ultimaAcao = "Poder (Gigante): +" + 2 + " pontos para " + jogador.getNome();
                 break;
             case "elfo":
-                if (!bando.isEmpty()) {
-                    jogador.mao.add(bando.get(0));
+                // BUG corrigido: se o bando tiver só 1 carta (o líder), não deve "voltar" a própria carta.
+                // Recupera uma carta do bando diferente do líder, quando existir.
+                Carta recuperada = null;
+                for (Carta carta : bando) {
+                    if (carta != lider) {
+                        recuperada = carta;
+                        break;
+                    }
                 }
-                ultimaAcao = "Poder (Elfo): recupera 1 carta para a mão de " + jogador.getNome();
+                if (recuperada != null) {
+                    jogador.mao.add(recuperada);
+                    ultimaAcao = "Poder (Elfo): recupera " + recuperada + " para a mão de " + jogador.getNome();
+                } else {
+                    ultimaAcao = "Poder (Elfo): sem carta para recuperar (bando com 1 carta)";
+                }
                 break;
             case "dragão":
                 dragoesRevelados = Math.max(0, dragoesRevelados - 1);
