@@ -1,0 +1,127 @@
+package com.projeto.ethnos.controller;
+
+import com.projeto.ethnos.model.Carta;
+import com.projeto.ethnos.model.Jogador;
+import com.projeto.ethnos.model.Partida;
+import com.projeto.ethnos.model.Regiao;
+import com.projeto.ethnos.view.MaoView;
+import com.projeto.ethnos.view.MercadoView;
+import com.projeto.ethnos.view.StatusView;
+import com.projeto.ethnos.view.TabuleiroView;
+
+import java.util.List;
+
+public class JogoController {
+
+    private Partida partida;
+    private Jogador jogadorPrincipal;
+    private MercadoView mercadoView;
+    private MaoView maoView;
+    private TabuleiroView tabuleiroView;
+    private StatusView statusView;
+
+    public JogoController(Partida partida, Jogador jogadorPrincipal, MercadoView mercadoView, MaoView maoView, TabuleiroView tabuleiroView, StatusView statusView) {
+        this.partida = partida;
+        this.jogadorPrincipal = jogadorPrincipal;
+        this.mercadoView = mercadoView;
+        this.maoView = maoView;
+        this.tabuleiroView = tabuleiroView;
+        this.statusView = statusView;
+        
+        configurarBotoes();
+    }
+
+    private void configurarBotoes() {
+        // Ação: Jogar Bando
+        this.maoView.getBtnJogar().setOnAction(event -> acaoJogarBando());
+        this.maoView.getBtnAtivarPoder().setOnAction(event -> acaoAtivarPoder());
+        
+        // Ação: Recrutar Aliado (Comprar do deck)
+        this.mercadoView.getDeckCompra().setOnMouseClicked(event -> acaoRecrutarAliado());
+    }
+
+    private void acaoJogarBando() {
+        if (partida.isJogoFinalizado()) {
+            return;
+        }
+        Jogador jogadorDaVez = partida.getJogadorAtual();
+        if (jogadorDaVez.isIa()) {
+            return;
+        }
+
+        List<Carta> cartasSelecionadas = maoView.getCartasSelecionadas();
+        
+        if (cartasSelecionadas.isEmpty()) {
+            System.out.println("Selecione cartas na sua mão primeiro!");
+            return;
+        }
+
+        Carta lider = maoView.getLiderSelecionado();
+        Regiao regiaoSelecionada = tabuleiroView.getRegiaoSelecionada();
+        if (lider == null) {
+            System.out.println("Selecione um líder na lista antes de jogar o bando.");
+            return;
+        }
+        if (!cartasSelecionadas.contains(lider)) {
+            System.out.println("O líder escolhido precisa estar entre as cartas selecionadas.");
+            return;
+        }
+        try {
+            partida.iniciarJogadaDoBando(jogadorDaVez, cartasSelecionadas, lider, regiaoSelecionada);
+        } catch (IllegalArgumentException ex) {
+            System.out.println(ex.getMessage());
+            return;
+        }
+
+        atualizarTelas();
+        executarTurnoIASeNecessario();
+    }
+
+    private void acaoRecrutarAliado() {
+        if (partida.isJogoFinalizado()) {
+            return;
+        }
+        Jogador jogadorDaVez = partida.getJogadorAtual();
+        if (jogadorDaVez.isIa()) {
+            return;
+        }
+
+        Carta escolhidaNoMercado = mercadoView.getCartaSelecionada();
+        try {
+            partida.comprarAliado(jogadorDaVez, escolhidaNoMercado);
+        } catch (IllegalArgumentException ex) {
+            System.out.println(ex.getMessage());
+            return;
+        }
+        
+        atualizarTelas();
+        executarTurnoIASeNecessario();
+    }
+
+    private void acaoAtivarPoder() {
+        Jogador jogadorDaVez = partida.getJogadorAtual();
+        Carta lider = maoView.getLiderSelecionado();
+        Regiao regiao = tabuleiroView.getRegiaoSelecionada();
+        if (lider == null || regiao == null) {
+            System.out.println("Selecione líder e região para ativar o poder.");
+            return;
+        }
+        partida.aplicarPoderDoLider(jogadorDaVez, lider, List.of(lider), regiao);
+        atualizarTelas();
+    }
+
+    private void executarTurnoIASeNecessario() {
+        while (!partida.isJogoFinalizado() && partida.getJogadorAtual().isIa()) {
+            partida.jogarTurnoIA();
+            atualizarTelas();
+        }
+    }
+
+    private void atualizarTelas() {
+        this.maoView.setJogadorModel(partida.getJogadorAtual());
+        maoView.atualizarVisualizacao();
+        mercadoView.atualizarVisualizacao();
+        statusView.atualizarVisualizacao();
+        tabuleiroView.atualizarVisualizacao();
+    }
+}
