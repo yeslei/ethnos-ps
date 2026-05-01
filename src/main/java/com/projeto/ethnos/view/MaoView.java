@@ -20,6 +20,7 @@ public class MaoView extends VBox {
     private Button btnJogar;
     private Button btnAtivarPoder;
     private ComboBox<Carta> comboLider;
+    private Carta ultimoLiderSelecionado;
     
     // Novo: Lista para rastrearmos as cartas desenhadas na tela
     private List<CartaView> cartasVisuaisExibidas = new ArrayList<>(); 
@@ -31,6 +32,8 @@ public class MaoView extends VBox {
         this.comboLider = new ComboBox<>();
         this.btnJogar.setStyle("-fx-background-color: #4CAF50; -fx-text-fill: white; -fx-font-weight: bold;");
         this.btnAtivarPoder.setStyle("-fx-background-color: #7E57C2; -fx-text-fill: white; -fx-font-weight: bold;");
+
+        this.comboLider.valueProperty().addListener((obs, oldV, newV) -> this.ultimoLiderSelecionado = newV);
         
         this.setAlignment(Pos.CENTER);
         this.setPadding(new Insets(10));
@@ -66,10 +69,19 @@ public class MaoView extends VBox {
                     }
                 }
             });
+
+            // Melhoria de UX: ao clicar numa carta, ela vira líder automaticamente.
+            visualCarta.addEventHandler(MouseEvent.MOUSE_CLICKED, e -> {
+                if (visualCarta.isSelecionada()) {
+                    this.comboLider.setValue(visualCarta.getCartaModel());
+                }
+            });
         }
 
         this.comboLider.getItems().setAll(jogadorModel.mao);
-        if (!this.comboLider.getItems().isEmpty()) {
+        if (this.ultimoLiderSelecionado != null && this.comboLider.getItems().contains(this.ultimoLiderSelecionado)) {
+            this.comboLider.setValue(this.ultimoLiderSelecionado);
+        } else if (!this.comboLider.getItems().isEmpty()) {
             this.comboLider.setValue(this.comboLider.getItems().get(0));
         }
         this.comboLider.setPromptText("Selecione o líder");
