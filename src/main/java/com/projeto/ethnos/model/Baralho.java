@@ -51,6 +51,11 @@ public class Baralho {
         return this.cartas.isEmpty();
     }
 
+    public boolean semCartasDisponiveis() {
+        // Essencial: o jogo só fica sem cartas quando monte e descarte acabarem.
+        return this.cartas.isEmpty() && this.descarte.isEmpty();
+    }
+
     public int qntdRestante() {
         return this.cartas.size();
     }
