@@ -8,6 +8,8 @@ import com.projeto.ethnos.view.MaoView;
 import com.projeto.ethnos.view.MercadoView;
 import com.projeto.ethnos.view.StatusView;
 import com.projeto.ethnos.view.TabuleiroView;
+import javafx.scene.control.Alert;
+import javafx.scene.control.Alert.AlertType;
 
 import java.util.List;
 
@@ -46,30 +48,31 @@ public class JogoController {
         }
         Jogador jogadorDaVez = partida.getJogadorAtual();
         if (jogadorDaVez.isIa()) {
+            mostrarInfo("Aguarde", "É o turno da IA.");
             return;
         }
 
         List<Carta> cartasSelecionadas = maoView.getCartasSelecionadas();
         
         if (cartasSelecionadas.isEmpty()) {
-            System.out.println("Selecione cartas na sua mão primeiro!");
+            mostrarAviso("Seleção inválida", "Selecione cartas na sua mão primeiro.");
             return;
         }
 
         Carta lider = maoView.getLiderSelecionado();
         Regiao regiaoSelecionada = tabuleiroView.getRegiaoSelecionada();
         if (lider == null) {
-            System.out.println("Selecione um líder na lista antes de jogar o bando.");
+            mostrarAviso("Seleção inválida", "Selecione um líder na lista antes de jogar o bando.");
             return;
         }
         if (!cartasSelecionadas.contains(lider)) {
-            System.out.println("O líder escolhido precisa estar entre as cartas selecionadas.");
+            mostrarAviso("Seleção inválida", "O líder escolhido precisa estar entre as cartas selecionadas.");
             return;
         }
         try {
             partida.iniciarJogadaDoBando(jogadorDaVez, cartasSelecionadas, lider, regiaoSelecionada);
         } catch (IllegalArgumentException ex) {
-            System.out.println(ex.getMessage());
+            mostrarAviso("Ação não permitida", ex.getMessage());
             return;
         }
 
@@ -83,6 +86,7 @@ public class JogoController {
         }
         Jogador jogadorDaVez = partida.getJogadorAtual();
         if (jogadorDaVez.isIa()) {
+            mostrarInfo("Aguarde", "É o turno da IA.");
             return;
         }
 
@@ -90,7 +94,7 @@ public class JogoController {
         try {
             partida.comprarAliado(jogadorDaVez, escolhidaNoMercado);
         } catch (IllegalArgumentException ex) {
-            System.out.println(ex.getMessage());
+            mostrarAviso("Ação não permitida", ex.getMessage());
             return;
         }
         
@@ -100,10 +104,14 @@ public class JogoController {
 
     private void acaoAtivarPoder() {
         Jogador jogadorDaVez = partida.getJogadorAtual();
+        if (jogadorDaVez.isIa()) {
+            mostrarInfo("Aguarde", "É o turno da IA.");
+            return;
+        }
         Carta lider = maoView.getLiderSelecionado();
         Regiao regiao = tabuleiroView.getRegiaoSelecionada();
         if (lider == null || regiao == null) {
-            System.out.println("Selecione líder e região para ativar o poder.");
+            mostrarAviso("Seleção inválida", "Selecione líder e região para ativar o poder.");
             return;
         }
         partida.aplicarPoderDoLider(jogadorDaVez, lider, List.of(lider), regiao);
@@ -123,5 +131,21 @@ public class JogoController {
         mercadoView.atualizarVisualizacao();
         statusView.atualizarVisualizacao();
         tabuleiroView.atualizarVisualizacao();
+    }
+
+    private void mostrarAviso(String titulo, String mensagem) {
+        Alert alert = new Alert(AlertType.WARNING);
+        alert.setTitle(titulo);
+        alert.setHeaderText(null);
+        alert.setContentText(mensagem);
+        alert.showAndWait();
+    }
+
+    private void mostrarInfo(String titulo, String mensagem) {
+        Alert alert = new Alert(AlertType.INFORMATION);
+        alert.setTitle(titulo);
+        alert.setHeaderText(null);
+        alert.setContentText(mensagem);
+        alert.showAndWait();
     }
 }
