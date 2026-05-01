@@ -5,6 +5,7 @@ import java.util.ArrayList;
 import java.util.Comparator;
 
 public class Partida {
+    private static final int LIMITE_MAO = 10;
     private List<Jogador> jogadores;
     private Baralho baralho;
     private Mercado mercado;
@@ -76,6 +77,10 @@ public class Partida {
         }
         if (jogador != getJogadorAtual()) {
             throw new IllegalArgumentException("Não é o turno deste jogador.");
+        }
+        if (jogador.mao.size() >= LIMITE_MAO) {
+            // Regra essencial: no Ethnos a mão tem limite.
+            throw new IllegalArgumentException("Limite de mão atingido (10 cartas). Jogue um bando antes de recrutar.");
         }
 
         Carta cartaComprada;
