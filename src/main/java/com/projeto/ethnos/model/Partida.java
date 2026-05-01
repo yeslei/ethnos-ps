@@ -19,6 +19,7 @@ public class Partida {
     private String ultimaAcao;
     private int turnoPowerRodada = -1;
     private Jogador turnoPowerJogador = null;
+    private boolean setupInicialAtivo;
 
     public Partida(List<Jogador> jogadores, Baralho baralho, Mercado mercado, Tabuleiro tabuleiro) {
         this.jogadores = jogadores;
@@ -32,6 +33,7 @@ public class Partida {
         this.vencedores = new ArrayList<>();
         this.rodadaAtual = 1;
         this.ultimaAcao = "Partida iniciada";
+        this.setupInicialAtivo = true;
     }
 
     public void registrarCompraDeCarta(Carta carta) {
@@ -39,13 +41,14 @@ public class Partida {
             return;
         }
 
-        // BUG corrigido: antes a lógica não validava ciclo de era completo.
-        // Agora toda revelação/compra passa por verificarFimDeEra().
+        // BUG corrigido: não verificamos fim de era aqui.
+        // Motivo: o setup inicial (revelar mercado) também compra do topo e pode revelar Dragões.
+        // O fim de era deve ser verificado após uma ação real de turno (comprar/jogar bando),
+        // evitando começar o jogo já pulando eras automaticamente.
         if (carta != null && "Dragão".equalsIgnoreCase(carta.tribo)) {
             dragoesRevelados++;
             System.out.println("Um dragão foi revelado! Total: " + dragoesRevelados);
         }
-        verificarFimDeEra();
     }
 
     public void iniciarEra() {
@@ -55,7 +58,9 @@ public class Partida {
 
         eraAtual++;
         dragoesRevelados = 0;
-        revelarCartasIniciais();
+        // Setup pedido: não permitir Dragões no setup inicial (mãos/mercado).
+        // Após o setup, dragões voltam a poder aparecer normalmente.
+        revelarCartasIniciais(setupInicialAtivo);
     }
 
     private void finalizarEra() {
@@ -71,19 +76,28 @@ public class Partida {
     }
 
     public List<Carta> revelarCartasIniciais() {
+        return revelarCartasIniciais(false);
+    }
+
+    private List<Carta> revelarCartasIniciais(boolean ignorarDragoes) {
         List<Carta> reveladas = new ArrayList<>();
         while (mercado.getCartasDisponiveis().size() < 5 && !baralho.semCartasDisponiveis()) {
             Carta topo = baralho.comprarDoTopo();
             if (topo == null) {
                 break;
             }
-            registrarCompraDeCarta(topo);
-            if (!"Dragão".equalsIgnoreCase(topo.tribo)) {
+            if ("Dragão".equalsIgnoreCase(topo.tribo)) {
+                // Setup inicial: não revela/conta Dragões no começo.
+                // Eles são descartados e podem voltar mais tarde via reciclagem.
+                baralho.descartarCarta(topo);
+                if (!ignorarDragoes) {
+                    registrarCompraDeCarta(topo);
+                }
+            } else {
+                // Só conta compras/revelações não-dragão para manter consistência de logs/última ação.
+                registrarCompraDeCarta(topo);
                 mercado.adicionarCartas(List.of(topo));
                 reveladas.add(topo);
-            } else {
-                // BUG corrigido: Dragões revelados no refill precisam ir para o descarte.
-                baralho.descartarCarta(topo);
             }
             if (jogoFinalizado) {
                 break;
@@ -129,6 +143,7 @@ public class Partida {
 
         // BUG corrigido: mesmo se não houver carta para comprar, o turno precisa terminar.
         // Caso contrário, a IA (ou o humano) fica "preso" e pode tentar comprar em loop.
+        verificarFimDeEra();
         proximoJogador();
     }
 
@@ -250,6 +265,7 @@ public class Partida {
         j.mao.clear();
 
         aplicarPoderDoLider(j, lider, bando, regiaoEscolhida);
+        verificarFimDeEra();
         proximoJogador();
         revelarCartasIniciais();
     }
@@ -501,9 +517,8 @@ public class Partida {
                     break;
                 }
                 if ("Dragão".equalsIgnoreCase(comprada.tribo)) {
-                    // Dragões são revelados e descartados, nunca entram na mão inicial.
+                    // Setup pedido: Dragões não entram na mão inicial e nem contam como revelados aqui.
                     baralho.descartarCarta(comprada);
-                    registrarCompraDeCarta(comprada);
                     continue;
                 }
                 jogador.mao.add(comprada);
@@ -511,5 +526,7 @@ public class Partida {
         }
 
         ultimaAcao = "Mãos iniciais distribuídas (" + cartasPorJogador + " cartas por jogador)";
+        // Encerra o modo de setup: a partir daqui dragões podem aparecer normalmente.
+        this.setupInicialAtivo = false;
     }
 }
