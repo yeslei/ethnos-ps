@@ -99,12 +99,13 @@ public class EthnosApp extends Application {
     private void inicializarModel() {
         // Criando as regiões mapeadas por cores (necessário para a lógica do Líder)
         List<Regiao> regioes = Arrays.asList(
-            new Regiao("Vermelho", Arrays.asList(0, 0, 0)), 
-            new Regiao("Verde", Arrays.asList(0, 0, 0)),
-            new Regiao("Amarelo", Arrays.asList(0, 0, 0)),
-            new Regiao("Azul", Arrays.asList(0, 0, 0)),
-            new Regiao("Roxo", Arrays.asList(0, 0, 0)),
-            new Regiao("Cinza", Arrays.asList(0, 0, 0))
+            // Pontuação por posição (1º, 2º, 3º). Valores simples para o MVP.
+            new Regiao("Vermelho", Arrays.asList(8, 5, 2)), 
+            new Regiao("Verde", Arrays.asList(8, 5, 2)),
+            new Regiao("Amarelo", Arrays.asList(8, 5, 2)),
+            new Regiao("Azul", Arrays.asList(8, 5, 2)),
+            new Regiao("Roxo", Arrays.asList(8, 5, 2)),
+            new Regiao("Cinza", Arrays.asList(8, 5, 2))
         );
 
         this.tabuleiro = new Tabuleiro(regioes);

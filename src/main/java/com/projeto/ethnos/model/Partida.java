@@ -97,10 +97,14 @@ public class Partida {
         }
 
         if (dragoesRevelados >= 3 || baralho.estaVazio()) {
-            // Pontuação simplificada por presença/dominância em cada região
+            // Essencial: pontuação de fim de era por ranking de fichas em cada região.
+            // Implementação: conta marcadores por jogador e aplica valoresPontuacao por posição.
             for (Regiao regiao : tabuleiro.getTodasRegioes()) {
-                for (Jogador jogador : regiao.getMarcadores()) {
-                    jogador.adicionarPontos(regiao.getPontuacao(0));
+                List<Jogador> ranking = regiao.rankingJogadoresPorMarcadores();
+                for (int pos = 0; pos < ranking.size(); pos++) {
+                    Jogador jogador = ranking.get(pos);
+                    int pontos = regiao.getPontuacao(pos);
+                    jogador.adicionarPontos(pontos);
                 }
             }
 
