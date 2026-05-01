@@ -133,7 +133,15 @@ public class JogoController {
     }
 
     private void atualizarTelas() {
-        this.maoView.setJogadorModel(partida.getJogadorAtual());
+        Jogador jogadorDaVez = partida.getJogadorAtual();
+        boolean turnoHumano = !jogadorDaVez.isIa() && !partida.isJogoFinalizado();
+
+        // Essencial: impede ações fora do turno (principalmente durante a IA).
+        this.maoView.getBtnJogar().setDisable(!turnoHumano);
+        this.maoView.getBtnAtivarPoder().setDisable(!turnoHumano);
+        this.mercadoView.getDeckCompra().setDisable(!turnoHumano);
+
+        this.maoView.setJogadorModel(jogadorDaVez);
         maoView.atualizarVisualizacao();
         mercadoView.atualizarVisualizacao();
         statusView.atualizarVisualizacao();
