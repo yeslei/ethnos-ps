@@ -154,6 +154,7 @@ public class Partida {
         if (jogoFinalizado) return;
         eraAtual++;
         dragoesRevelados = 0;
+        baralho.prepararNovaEraComDragaoNaSegundaMetade();
         revelarCartasRaca(setupInicialAtivo);
         notifica();
     }
@@ -246,7 +247,7 @@ public class Partida {
      * Operação principal: jogar um bando.
      *
      * Passos:
-     *  1. Validar dono do turno, líder dentro do bando e região válida.
+    *  1. Validar dono do turno e líder dentro do bando.
      *  2. Validar combinação de cor/tribo do bando com o líder.
      *  3. Pedir ao Jogador que crie o Bando (Creator).
      *  4. Adicionar marcador na região e contabilizar pontos do bando.
@@ -264,8 +265,9 @@ public class Partida {
         if (!bando.contains(lider)) {
             throw new IllegalArgumentException("O líder precisa estar dentro do bando selecionado.");
         }
-        if (regiao == null) {
-            throw new IllegalArgumentException("Selecione uma região para posicionar a ficha.");
+        Regiao regiaoAlvo = tabuleiro.getRegiao(lider.getCor());
+        if (regiaoAlvo == null) {
+            throw new IllegalArgumentException("Nao existe regiao para a cor do lider.");
         }
 
         // Validação de coerência do bando.
@@ -282,7 +284,7 @@ public class Partida {
         // precisa ter no mínimo N cartas. Ou seja, o tamanho do bando deve ser
         // estritamente maior que a quantidade de marcadores que o jogador já
         // tem na região. Minotauro como líder reduz o requisito em 1.
-        int marcadoresPresentes = contarMarcadoresDoJogadorNaRegiao(j, regiao);
+        int marcadoresPresentes = contarMarcadoresDoJogadorNaRegiao(j, regiaoAlvo);
         int tamanhoMinimo = marcadoresPresentes + 1;
         if (lider instanceof com.projeto.ethnos.model.carta.Minotauro) {
             tamanhoMinimo = Math.max(1, tamanhoMinimo - 1);
@@ -298,7 +300,7 @@ public class Partida {
         Bando bandoCriado = j.jogarBando(bando, lider);
 
         // Marcar presença na região e contar pontos.
-        regiao.adicionarMarcador(j);
+        regiaoAlvo.adicionarMarcador(j);
         j.adicionarPontos(bandoCriado.calcularPontos());
 
         // Sobras da mão vão para o mercado (regra do jogo).
@@ -310,20 +312,20 @@ public class Partida {
         // GoF Strategy: aplica o poder do líder polimorficamente.
         lider.ativaPoder(); // operação do diagrama (apenas registra)
         ultimoLiderPoder = lider;
-        String resultadoPoder = aplicarPoderDoLider(j, lider, bandoCriado.getCartas(), regiao);
+        String resultadoPoder = aplicarPoderDoLider(j, lider, bandoCriado.getCartas(), regiaoAlvo);
         ultimaAcaoPoder = resultadoPoder;
 
-        String resumoJogada = j.getNome() + " baixou " + bandoCriado.getTamanho()
-                            + " cartas em " + regiao.getNome() + " (líder: " + lider.getTribo() + ")";
+        String resumoJogada = j.getNome() + " jogou um bando de " + bandoCriado.getTamanho()
+                            + " cartas na regiao " + regiaoAlvo.getNome() + " e colocou 1 ficha.";
         if (resultadoPoder != null && !resultadoPoder.isBlank()) {
-            ultimaAcao = resumoJogada + " | " + resultadoPoder;
+            ultimaAcao = resumoJogada + " Poder: " + resultadoPoder;
         } else {
             ultimaAcao = resumoJogada;
         }
 
         verificarFimDeEra();
         proximoJogador();
-        revelarCartasRaca();
+        revelarCartasRaca(true);
         notifica();
     }
 
@@ -433,8 +435,8 @@ public class Partida {
 
         if (!ia.getMao().isEmpty()) {
             JogadaIA jogada = escolherMelhorJogadaIA(ia);
-            if (jogada != null && jogada.regiao != null) {
-                iniciarJogadaDoBando(ia, jogada.bando, jogada.lider, jogada.regiao);
+            if (jogada != null) {
+                iniciarJogadaDoBando(ia, jogada.bando, jogada.lider, null);
                 return;
             }
             // Nenhum bando válido para nenhuma região -> recruta.
@@ -445,8 +447,9 @@ public class Partida {
     }
 
     private JogadaIA escolherMelhorJogadaIA(Jogador ia) {
-        Carta melhorLider = ia.getMao().get(0);
-        List<Carta> melhorBando = List.of(melhorLider);
+        Carta melhorLider = null;
+        List<Carta> melhorBando = List.of();
+        int melhorTamanho = 0;
 
         for (Carta candidata : ia.getMao()) {
             List<Carta> bandoAtual = new ArrayList<>();
@@ -457,34 +460,24 @@ public class Partida {
                     bandoAtual.add(carta);
                 }
             }
-            if (bandoAtual.size() > melhorBando.size()) {
+            Regiao regiaoAlvo = tabuleiro.getRegiao(candidata.getCor());
+            if (regiaoAlvo == null) continue;
+
+            int marcadoresPresentes = contarMarcadoresDoJogadorNaRegiao(ia, regiaoAlvo);
+            int tamanhoMinimo = marcadoresPresentes + 1;
+            if (candidata instanceof com.projeto.ethnos.model.carta.Minotauro) {
+                tamanhoMinimo = Math.max(1, tamanhoMinimo - 1);
+            }
+            if (bandoAtual.size() < tamanhoMinimo) continue;
+
+            if (bandoAtual.size() > melhorTamanho) {
                 melhorLider = candidata;
                 melhorBando = bandoAtual;
+                melhorTamanho = bandoAtual.size();
             }
         }
-        Regiao regiaoValida = escolherRegiaoValidaParaIA(ia, melhorLider, melhorBando.size());
-        if (regiaoValida == null) return null;
-        return new JogadaIA(melhorLider, melhorBando, regiaoValida);
-    }
-
-    /**
-     * Escolhe uma região onde a regra do N-ésimo marcador permita plantar.
-     * Tenta primeiro a região da cor do líder, depois as outras.
-     */
-    private Regiao escolherRegiaoValidaParaIA(Jogador ia, Carta lider, int tamanhoBando) {
-        Regiao preferida = tabuleiro.getRegiao(lider.getCor());
-        int tamanhoMinExtra = (lider instanceof com.projeto.ethnos.model.carta.Minotauro) ? 1 : 0;
-
-        if (preferida != null
-            && contarMarcadoresDoJogadorNaRegiao(ia, preferida) < tamanhoBando + tamanhoMinExtra) {
-            return preferida;
-        }
-        for (Regiao r : tabuleiro.getTodasRegioes()) {
-            if (contarMarcadoresDoJogadorNaRegiao(ia, r) < tamanhoBando + tamanhoMinExtra) {
-                return r;
-            }
-        }
-        return null;
+        if (melhorLider == null || melhorBando.isEmpty()) return null;
+        return new JogadaIA(melhorLider, melhorBando);
     }
 
     private Carta escolherCartaMercadoParaIA(Jogador ia) {
@@ -502,8 +495,7 @@ public class Partida {
     private static final class JogadaIA {
         final Carta lider;
         final List<Carta> bando;
-        final Regiao regiao;
-        JogadaIA(Carta l, List<Carta> b, Regiao r) { this.lider = l; this.bando = b; this.regiao = r; }
+        JogadaIA(Carta l, List<Carta> b) { this.lider = l; this.bando = b; }
     }
 
     // ====================================================================

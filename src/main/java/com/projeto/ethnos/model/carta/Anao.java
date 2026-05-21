@@ -26,6 +26,11 @@ public class Anao extends Carta {
         return new PoderAnao();
     }
 
+    @Override
+    public String getDescricaoPoder() {
+        return "+1 ponto ao liderar um bando";
+    }
+
     private static final class PoderAnao implements PoderDoLider {
         @Override
         public String executar(Partida partida, Jogador jogador, List<Carta> bando, Regiao regiao) {

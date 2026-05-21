@@ -22,22 +22,27 @@ public class CartaView extends StackPane {
     public CartaView(Carta cartaModel) {
         this.cartaModel = cartaModel;
 
-        fundo = new Rectangle(80, 110);
-        fundo.setFill(Color.WHITE);
-        fundo.setStroke(Color.BLACK);
-        fundo.setStrokeWidth(1);
+        fundo = new Rectangle(88, 120);
+        fundo.setFill(Color.web(UiPalette.getParchmentBackground()));
+        fundo.setStroke(Color.web(UiPalette.getWoodBorder()));
+        fundo.setStrokeWidth(1.5);
         fundo.setArcWidth(10);
         fundo.setArcHeight(10);
 
-        Rectangle faixaCor = new Rectangle(78, 25);
-        faixaCor.setFill(obterCorVisual(cartaModel.getCor()));
+        Rectangle faixaCor = new Rectangle(84, 24);
+        faixaCor.setFill(UiPalette.getCardStripe(cartaModel.getCor()));
 
         Label triboLabel = new Label(cartaModel.getTribo());
-        triboLabel.setStyle("-fx-font-weight: bold; -fx-text-fill: black;");
+        triboLabel.setStyle("-fx-font-weight: bold; -fx-text-fill: #2B1B12; -fx-font-size: 12px;");
 
-        VBox conteudo = new VBox(5);
+        Label poderLabel = new Label(cartaModel.getDescricaoPoder());
+        poderLabel.setWrapText(true);
+        poderLabel.setMaxWidth(80);
+        poderLabel.setStyle("-fx-text-fill: #4D3B2A; -fx-font-size: 9px;");
+
+        VBox conteudo = new VBox(4);
         conteudo.setAlignment(Pos.TOP_CENTER);
-        conteudo.getChildren().addAll(faixaCor, triboLabel);
+        conteudo.getChildren().addAll(faixaCor, triboLabel, poderLabel);
 
         this.getChildren().addAll(fundo, conteudo);
 
@@ -48,19 +53,6 @@ public class CartaView extends StackPane {
 
     private void toggleSelecao() {
         setSelecionada(!selecionada);
-    }
-
-    private Color obterCorVisual(String corTexto) {
-        if (corTexto == null) return Color.LIGHTGRAY;
-        switch (corTexto.toLowerCase()) {
-            case "vermelho": return Color.SALMON;
-            case "verde":    return Color.LIGHTGREEN;
-            case "amarelo":  return Color.KHAKI;
-            case "azul":     return Color.LIGHTBLUE;
-            case "roxo":     return Color.THISTLE;
-            case "cinza":    return Color.DARKGRAY;
-            default:         return Color.WHITE;
-        }
     }
 
     public Carta getCartaModel() { return cartaModel; }

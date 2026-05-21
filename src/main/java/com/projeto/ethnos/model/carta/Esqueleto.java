@@ -23,6 +23,11 @@ public class Esqueleto extends Carta {
         return new PoderEsqueleto();
     }
 
+    @Override
+    public String getDescricaoPoder() {
+        return "Rouba 1 ponto do jogador com mais pontos";
+    }
+
     private static final class PoderEsqueleto implements PoderDoLider {
         @Override
         public String executar(Partida partida, Jogador jogador, List<Carta> bando, Regiao regiao) {

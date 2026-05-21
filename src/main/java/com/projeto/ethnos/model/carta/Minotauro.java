@@ -24,6 +24,11 @@ public class Minotauro extends Carta {
         return new PoderMinotauro();
     }
 
+    @Override
+    public String getDescricaoPoder() {
+        return "Coloca 1 ficha extra na regiao";
+    }
+
     private static final class PoderMinotauro implements PoderDoLider {
         @Override
         public String executar(Partida partida, Jogador jogador, List<Carta> bando, Regiao regiao) {

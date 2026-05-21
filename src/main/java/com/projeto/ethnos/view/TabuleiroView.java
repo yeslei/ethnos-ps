@@ -20,7 +20,6 @@ import java.util.List;
 public class TabuleiroView extends GridPane implements Assinante {
 
     private final Tabuleiro tabuleiroModel;
-    private Regiao regiaoSelecionada;
 
     public TabuleiroView(Tabuleiro tabuleiroModel) {
         this.tabuleiroModel = tabuleiroModel;
@@ -38,43 +37,48 @@ public class TabuleiroView extends GridPane implements Assinante {
 
     private void redesenhar() {
         this.getChildren().clear();
-        String[] coresBase = {"#FFCCCC", "#CCFFCC", "#FFFFCC", "#CCFFFF", "#CCCCFF", "#DDDDDD"};
         List<Regiao> regioes = tabuleiroModel.getTodasRegioes();
 
         for (int i = 0; i < regioes.size(); i++) {
             Regiao regiao = regioes.get(i);
             VBox regiaoBox = new VBox(10);
             regiaoBox.setAlignment(Pos.CENTER);
-            regiaoBox.setPrefSize(180, 180);
+            regiaoBox.setPrefSize(200, 190);
 
-            String corFundo = i < coresBase.length ? coresBase[i] : "#FFFFFF";
-            String borda = regiao == regiaoSelecionada ? "#1E88E5" : "#333333";
-            String espessura = regiao == regiaoSelecionada ? "4px" : "2px";
+            String corFundo = UiPalette.getRegionBackground(regiao.getNome());
             regiaoBox.setStyle("-fx-background-color: " + corFundo
-                + "; -fx-border-color: " + borda + "; -fx-border-width: " + espessura + ";");
+                + "; -fx-border-color: " + UiPalette.getWoodBorder()
+                + "; -fx-border-width: 2px; -fx-background-radius: 6px; -fx-border-radius: 6px;");
 
             Label nomeLabel = new Label("Região: " + regiao.getNome());
+            nomeLabel.setStyle("-fx-font-weight: bold; -fx-text-fill: #2B1B12; -fx-font-family: 'Papyrus', 'Serif';");
             Label marcadoresLabel = new Label("Fichas: " + regiao.getMarcadores().size());
-            Label selecionadaLabel = new Label(regiao == regiaoSelecionada ? "Selecionada" : "");
+            marcadoresLabel.setStyle("-fx-text-fill: #3B2A1C; -fx-font-family: 'Papyrus', 'Serif';");
+            Label pontuacaoLabel = new Label(montarTextoPontuacao(regiao));
+            pontuacaoLabel.setStyle("-fx-font-size: 11px; -fx-text-fill: #3B2A1C;");
 
             VBox listaJogadores = new VBox(2);
             listaJogadores.setAlignment(Pos.CENTER);
             for (Jogador j : regiao.getMarcadores()) {
-                listaJogadores.getChildren().add(new Label("• " + j.getNome()));
+                Label nomeJogador = new Label("• " + j.getNome());
+                nomeJogador.setStyle("-fx-text-fill: #2B1B12; -fx-font-family: 'Papyrus', 'Serif';");
+                listaJogadores.getChildren().add(nomeJogador);
             }
 
-            regiaoBox.getChildren().addAll(nomeLabel, marcadoresLabel, selecionadaLabel, listaJogadores);
-            regiaoBox.setOnMouseClicked(event -> selecionarRegiao(regiao));
+            regiaoBox.getChildren().addAll(nomeLabel, pontuacaoLabel, marcadoresLabel, listaJogadores);
             this.add(regiaoBox, i % 3, i / 3);
         }
     }
 
-    private void selecionarRegiao(Regiao regiao) {
-        this.regiaoSelecionada = regiao;
-        redesenhar();
-    }
-
-    public Regiao getRegiaoSelecionada() {
-        return regiaoSelecionada;
+    private String montarTextoPontuacao(Regiao regiao) {
+        List<Integer> valores = regiao.getValoresPontuacao();
+        if (valores.isEmpty()) return "Pontuacao: -";
+        StringBuilder sb = new StringBuilder("Pontuacao: ");
+        for (int i = valores.size() - 1; i >= 0; i--) {
+            int pos = valores.size() - i;
+            sb.append(pos).append("º=").append(valores.get(i));
+            if (i > 0) sb.append("  ");
+        }
+        return sb.toString();
     }
 }

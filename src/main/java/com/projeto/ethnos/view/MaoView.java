@@ -60,6 +60,9 @@ public class MaoView extends VBox implements Assinante {
         this.setAlignment(Pos.CENTER);
         this.setPadding(new Insets(10));
         this.setSpacing(10);
+        this.setStyle("-fx-background-color: " + UiPalette.getParchmentBackground()
+            + "; -fx-border-color: " + UiPalette.getWoodBorder()
+            + "; -fx-border-width: 2px; -fx-font-family: 'Papyrus', 'Serif';");
 
         redesenhar();
     }
@@ -68,6 +71,11 @@ public class MaoView extends VBox implements Assinante {
     public void atualiza(Partida p) {
         if (p == null) return;
         Jogador novoJogador = p.getJogadorAtual();
+        if (novoJogador.isIa()) {
+            // Mantem a mao do jogador humano visivel durante o turno da IA.
+            redesenhar();
+            return;
+        }
         if (novoJogador != this.jogadorModel) {
             this.liderSelecionado = null;
         }
@@ -98,7 +106,8 @@ public class MaoView extends VBox implements Assinante {
         // Atualiza label do líder atual
         if (this.liderSelecionado != null) {
             this.lblLiderAtual.setText("Líder: " + this.liderSelecionado.getTribo()
-                + " (" + this.liderSelecionado.getCor() + ") ★");
+                + " (" + this.liderSelecionado.getCor() + ") ★  -> Região: "
+                + this.liderSelecionado.getCor());
         } else {
             this.lblLiderAtual.setText("Líder: (nenhum - selecione uma carta e clique em 'Marcar como líder')");
         }
@@ -137,8 +146,7 @@ public class MaoView extends VBox implements Assinante {
         Label instrucao = new Label(
             "1) Clique nas cartas que comporão o bando.  "
             + "2) Selecione UMA delas e clique 'Marcar como líder'.  "
-            + "3) Clique numa região do tabuleiro.  "
-            + "4) Clique 'Jogar Bando'.");
+            + "3) Clique 'Jogar Bando' (a regiao sera definida pela cor do lider). ");
         instrucao.setWrapText(true);
         instrucao.setStyle("-fx-text-fill: #555555; -fx-font-style: italic;");
         instrucao.setMaxWidth(900);

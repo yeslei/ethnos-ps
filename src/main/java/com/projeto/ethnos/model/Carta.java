@@ -58,6 +58,13 @@ public abstract class Carta {
         System.out.println("Poder ativado: " + tribo);
     }
 
+    /**
+     * Texto curto para UI descrevendo o poder da carta.
+     */
+    public String getDescricaoPoder() {
+        return "Sem poder";
+    }
+
     public String getNome() {
         return nome;
     }

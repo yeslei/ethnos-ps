@@ -94,4 +94,8 @@ public class Regiao {
     public List<Jogador> getMarcadores() {
         return List.copyOf(marcadores);
     }
+
+    public List<Integer> getValoresPontuacao() {
+        return valoresPontuacao;
+    }
 }

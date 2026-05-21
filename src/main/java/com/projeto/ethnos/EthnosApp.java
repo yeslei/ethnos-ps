@@ -76,6 +76,7 @@ public class EthnosApp extends Application {
         // Layout principal
         BorderPane root = new BorderPane();
         root.setPadding(new Insets(10));
+        root.setStyle("-fx-background-color: linear-gradient(#3F2E1B, #2A1E12);");
         root.setTop(mercadoView);
         root.setCenter(tabuleiroView);
         root.setBottom(maoView);

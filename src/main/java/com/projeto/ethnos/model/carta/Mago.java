@@ -20,6 +20,11 @@ public class Mago extends Carta {
         return new PoderMago();
     }
 
+    @Override
+    public String getDescricaoPoder() {
+        return "Saca 1 carta do topo";
+    }
+
     private static final class PoderMago implements PoderDoLider {
         @Override
         public String executar(Partida partida, Jogador jogador, List<Carta> bando, Regiao regiao) {

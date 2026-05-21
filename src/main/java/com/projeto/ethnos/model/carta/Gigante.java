@@ -20,6 +20,11 @@ public class Gigante extends Carta {
         return new PoderGigante();
     }
 
+    @Override
+    public String getDescricaoPoder() {
+        return "+2 pontos ao liderar";
+    }
+
     private static final class PoderGigante implements PoderDoLider {
         @Override
         public String executar(Partida partida, Jogador jogador, List<Carta> bando, Regiao regiao) {

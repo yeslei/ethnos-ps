@@ -20,6 +20,11 @@ public class Troll extends Carta {
         return new PoderTroll();
     }
 
+    @Override
+    public String getDescricaoPoder() {
+        return "+1 ponto por carta no bando";
+    }
+
     private static final class PoderTroll implements PoderDoLider {
         @Override
         public String executar(Partida partida, Jogador jogador, List<Carta> bando, Regiao regiao) {

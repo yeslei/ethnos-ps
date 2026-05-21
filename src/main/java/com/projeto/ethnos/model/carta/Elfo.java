@@ -23,6 +23,11 @@ public class Elfo extends Carta {
         return new PoderElfo();
     }
 
+    @Override
+    public String getDescricaoPoder() {
+        return "Recupera 1 carta do bando para a mao";
+    }
+
     private static final class PoderElfo implements PoderDoLider {
         @Override
         public String executar(Partida partida, Jogador jogador, List<Carta> bando, Regiao regiao) {

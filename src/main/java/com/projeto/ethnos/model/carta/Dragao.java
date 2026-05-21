@@ -26,4 +26,9 @@ public class Dragao extends Carta {
     public static boolean ehDragao(Carta c) {
         return c instanceof Dragao;
     }
+
+    @Override
+    public String getDescricaoPoder() {
+        return "Sem poder (fim de era ao revelar)";
+    }
 }

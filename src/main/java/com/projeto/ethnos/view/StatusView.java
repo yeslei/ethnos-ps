@@ -23,7 +23,9 @@ public class StatusView extends VBox implements Assinante {
         this.setPadding(new Insets(20));
         this.setSpacing(10);
         this.setPrefWidth(240);
-        this.setStyle("-fx-background-color: #f4f4f4; -fx-border-color: #cccccc;");
+        this.setStyle("-fx-background-color: " + UiPalette.getParchmentBackground()
+            + "; -fx-border-color: " + UiPalette.getWoodBorder()
+            + "; -fx-border-width: 2px; -fx-font-family: 'Papyrus', 'Serif';");
         redesenhar();
     }
 
@@ -44,7 +46,8 @@ public class StatusView extends VBox implements Assinante {
         Label lblTurno = new Label("Vez: " + partidaModel.getJogadorAtual().getNome());
         Label lblUltimaAcao = new Label("Última ação: " + partidaModel.getUltimaAcao());
         lblUltimaAcao.setWrapText(true);
-        Label lblDica = new Label("Dica: clique na carta para selecionar, escolha o líder e a região.");
+        lblUltimaAcao.setStyle("-fx-text-fill: #3B2A1C; -fx-font-weight: bold;");
+        Label lblDica = new Label("Dica: a regiao do bando e definida pela cor do lider.");
         lblDica.setWrapText(true);
         lblDica.setTextFill(Color.DARKSLATEGRAY);
 

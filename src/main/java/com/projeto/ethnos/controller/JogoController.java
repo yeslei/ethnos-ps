@@ -4,12 +4,15 @@ import com.projeto.ethnos.model.Carta;
 import com.projeto.ethnos.model.Jogador;
 import com.projeto.ethnos.model.Partida;
 import com.projeto.ethnos.model.Regiao;
+import com.projeto.ethnos.sound.SoundEffects;
 import com.projeto.ethnos.view.MaoView;
 import com.projeto.ethnos.view.MercadoView;
 import com.projeto.ethnos.view.StatusView;
 import com.projeto.ethnos.view.TabuleiroView;
+import javafx.animation.PauseTransition;
 import javafx.scene.control.Alert;
 import javafx.scene.control.Alert.AlertType;
+import javafx.util.Duration;
 
 import java.util.List;
 
@@ -72,7 +75,7 @@ public class JogoController {
         }
 
         Carta lider = maoView.getLiderSelecionado();
-        Regiao regiao = tabuleiroView.getRegiaoSelecionada();
+        Regiao regiao = partida.getTabuleiro().getRegiao(lider.getCor());
 
         if (lider == null) {
             mostrarAviso("Seleção inválida",
@@ -86,7 +89,7 @@ public class JogoController {
             return;
         }
         if (regiao == null) {
-            mostrarAviso("Seleção inválida", "Clique em uma região do tabuleiro.");
+            mostrarAviso("Ação não permitida", "Nao existe regiao para a cor do lider.");
             return;
         }
 
@@ -97,7 +100,8 @@ public class JogoController {
             return;
         }
 
-        mostrarPoderAtivadoSeNecessario(jogadorDaVez, lider);
+        SoundEffects.playBando();
+        mostrarConfirmacaoJogada(jogadorDaVez, lider, regiao);
 
         maoView.limparSelecaoCartas();
         mercadoView.limparSelecao();
@@ -127,10 +131,22 @@ public class JogoController {
     }
 
     private void executarTurnoIASeNecessario() {
-        while (!partida.isJogoFinalizado() && partida.getJogadorAtual().isIa()) {
+        if (partida.isJogoFinalizado() || !partida.getJogadorAtual().isIa()) return;
+        atualizarHabilitacao();
+
+        PauseTransition pausa = new PauseTransition(Duration.millis(900));
+        pausa.setOnFinished(e -> {
             partida.jogarTurnoIA();
+            String ultima = partida.getUltimaAcao();
+            if (ultima != null && ultima.contains("jogou um bando")) {
+                SoundEffects.playBando();
+            }
             atualizarHabilitacao();
-        }
+            if (!partida.isJogoFinalizado() && partida.getJogadorAtual().isIa()) {
+                executarTurnoIASeNecessario();
+            }
+        });
+        pausa.play();
     }
 
     /** Bloqueia botões durante turno de IA / fim de jogo. */
@@ -157,17 +173,21 @@ public class JogoController {
         alert.showAndWait();
     }
 
-    private void mostrarPoderAtivadoSeNecessario(Jogador jogador, Carta lider) {
-        if (lider == null || lider.getPoder() == null) return;
+    private void mostrarConfirmacaoJogada(Jogador jogador, Carta lider, Regiao regiao) {
         String descricao = partida.getUltimaAcaoPoder();
-        if (descricao == null || descricao.isBlank()) return;
-
         Alert alert = new Alert(AlertType.INFORMATION);
-        alert.setTitle("Poder ativado");
-        alert.setHeaderText("Poder do líder usado");
-        alert.setContentText("Jogador: " + jogador.getNome()
-            + "\nLíder: " + lider.getTribo()
-            + "\nEfeito: " + descricao);
+        alert.setTitle("Jogada confirmada");
+        alert.setHeaderText("Regiao definida pela cor do lider");
+        StringBuilder texto = new StringBuilder();
+        texto.append("Jogador: ").append(jogador.getNome())
+            .append("\nLider: ").append(lider.getTribo())
+            .append("\nRegiao: ").append(regiao.getNome());
+        if (descricao != null && !descricao.isBlank()) {
+            texto.append("\nPoder: ").append(descricao);
+        } else {
+            texto.append("\nPoder: sem poder ativo");
+        }
+        alert.setContentText(texto.toString());
         alert.showAndWait();
     }
 }

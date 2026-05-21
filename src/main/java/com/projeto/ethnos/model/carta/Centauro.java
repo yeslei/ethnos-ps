@@ -23,6 +23,11 @@ public class Centauro extends Carta {
         return new PoderCentauro();
     }
 
+    @Override
+    public String getDescricaoPoder() {
+        return "Compra 1 carta do baralho";
+    }
+
     private static final class PoderCentauro implements PoderDoLider {
         @Override
         public String executar(Partida partida, Jogador jogador, List<Carta> bando, Regiao regiao) {

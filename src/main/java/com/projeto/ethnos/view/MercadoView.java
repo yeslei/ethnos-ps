@@ -30,19 +30,23 @@ public class MercadoView extends HBox implements Assinante {
         this.setPadding(new Insets(10));
         this.setSpacing(15);
         this.setAlignment(Pos.CENTER);
-        this.setStyle("-fx-background-color: #e0e0e0; -fx-border-color: #ccc;");
+        this.setStyle("-fx-background-color: " + UiPalette.getParchmentBackground()
+            + "; -fx-border-color: " + UiPalette.getWoodBorder()
+            + "; -fx-border-width: 2px; -fx-font-family: 'Papyrus', 'Serif';");
 
         this.deckCompra = new VBox();
         this.deckCompra.setAlignment(Pos.CENTER);
-        this.deckCompra.setStyle("-fx-border-color: black; -fx-background-color: #777; -fx-pref-width: 80px; -fx-pref-height: 110px;");
+        this.deckCompra.setStyle("-fx-border-color: " + UiPalette.getWoodBorder()
+            + "; -fx-background-color: #5A4632; -fx-pref-width: 88px; -fx-pref-height: 120px;");
         Label lblCompra = new Label("Comprar");
         lblCompra.setStyle("-fx-text-fill: white; -fx-font-weight: bold;");
         this.deckCompra.getChildren().add(lblCompra);
 
         this.deckCompra.setOnMouseEntered(e -> this.deckCompra.setStyle(
-            "-fx-border-color: white; -fx-border-width: 2px; -fx-background-color: #555; -fx-pref-width: 80px; -fx-pref-height: 110px;"));
+            "-fx-border-color: #E6DCC7; -fx-border-width: 2px; -fx-background-color: #4B3A2A; -fx-pref-width: 88px; -fx-pref-height: 120px;"));
         this.deckCompra.setOnMouseExited(e -> this.deckCompra.setStyle(
-            "-fx-border-color: black; -fx-border-width: 1px; -fx-background-color: #777; -fx-pref-width: 80px; -fx-pref-height: 110px;"));
+            "-fx-border-color: " + UiPalette.getWoodBorder()
+                + "; -fx-border-width: 1px; -fx-background-color: #5A4632; -fx-pref-width: 88px; -fx-pref-height: 120px;"));
 
         redesenhar();
     }

@@ -1,5 +1,7 @@
 package com.projeto.ethnos.model;
 
+import com.projeto.ethnos.model.carta.Dragao;
+
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -48,6 +50,49 @@ public class Baralho {
     }
 
     /**
+     * Reorganiza o baralho para uma nova era garantindo que dragões só
+     * apareçam na segunda metade do monte.
+     */
+    public void prepararNovaEraComDragaoNaSegundaMetade() {
+        if (!this.descarte.isEmpty()) {
+            this.cartas.addAll(this.descarte);
+            this.descarte.clear();
+        }
+        if (this.cartas.isEmpty()) return;
+
+        List<Carta> dragoes = new ArrayList<>();
+        List<Carta> normais = new ArrayList<>();
+        for (Carta c : this.cartas) {
+            if (Dragao.ehDragao(c)) {
+                dragoes.add(c);
+            } else {
+                normais.add(c);
+            }
+        }
+
+        Collections.shuffle(normais);
+        Collections.shuffle(dragoes);
+
+        int total = normais.size() + dragoes.size();
+        int limitePrimeiraMetade = total / 2;
+        int qtdNormaisPrimeira = Math.min(limitePrimeiraMetade, normais.size());
+
+        List<Carta> novaOrdem = new ArrayList<>(total);
+        novaOrdem.addAll(normais.subList(0, qtdNormaisPrimeira));
+
+        List<Carta> segundaMetade = new ArrayList<>();
+        if (qtdNormaisPrimeira < normais.size()) {
+            segundaMetade.addAll(normais.subList(qtdNormaisPrimeira, normais.size()));
+        }
+        segundaMetade.addAll(dragoes);
+        Collections.shuffle(segundaMetade);
+        novaOrdem.addAll(segundaMetade);
+
+        this.cartas.clear();
+        this.cartas.addAll(novaOrdem);
+    }
+
+    /**
      * Operação do diagrama: comprarDoTopo(): Carta.
      *
      * Quando o monte zera, reciclamos o descarte automaticamente. Isso
@@ -55,9 +100,7 @@ public class Baralho {
      */
     public Carta comprarDoTopo() {
         if (this.cartas.isEmpty() && !this.descarte.isEmpty()) {
-            this.cartas.addAll(this.descarte);
-            this.descarte.clear();
-            embaralhar();
+            prepararNovaEraComDragaoNaSegundaMetade();
         }
         if (!this.cartas.isEmpty()) {
             return this.cartas.remove(this.cartas.size() - 1);
