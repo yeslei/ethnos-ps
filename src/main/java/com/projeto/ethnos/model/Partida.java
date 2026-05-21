@@ -58,6 +58,8 @@ public class Partida {
     private boolean jogoFinalizado;
     private final List<Jogador> vencedores = new ArrayList<>();
     private String ultimaAcao;
+    private String ultimaAcaoPoder;
+    private Carta ultimoLiderPoder;
     private boolean setupInicialAtivo;
 
     // --- Observer (papel de Subject) ---
@@ -77,6 +79,8 @@ public class Partida {
         this.rodadaAtual = 1;
         this.jogoFinalizado = false;
         this.ultimaAcao = "Partida iniciada";
+        this.ultimaAcaoPoder = null;
+        this.ultimoLiderPoder = null;
         this.setupInicialAtivo = true;
     }
 
@@ -305,10 +309,17 @@ public class Partida {
 
         // GoF Strategy: aplica o poder do líder polimorficamente.
         lider.ativaPoder(); // operação do diagrama (apenas registra)
-        aplicarPoderDoLider(j, lider, bandoCriado.getCartas(), regiao);
+        ultimoLiderPoder = lider;
+        String resultadoPoder = aplicarPoderDoLider(j, lider, bandoCriado.getCartas(), regiao);
+        ultimaAcaoPoder = resultadoPoder;
 
-        ultimaAcao = j.getNome() + " baixou " + bandoCriado.getTamanho()
-                   + " cartas em " + regiao.getNome() + " (líder: " + lider.getTribo() + ")";
+        String resumoJogada = j.getNome() + " baixou " + bandoCriado.getTamanho()
+                            + " cartas em " + regiao.getNome() + " (líder: " + lider.getTribo() + ")";
+        if (resultadoPoder != null && !resultadoPoder.isBlank()) {
+            ultimaAcao = resumoJogada + " | " + resultadoPoder;
+        } else {
+            ultimaAcao = resumoJogada;
+        }
 
         verificarFimDeEra();
         proximoJogador();
@@ -320,17 +331,13 @@ public class Partida {
      * Aplica o poder do líder via Strategy. Não conhece as tribos
      * específicas: apenas pede o PoderDoLider à carta e executa.
      */
-    public void aplicarPoderDoLider(Jogador jogador, Carta lider, List<Carta> bando, Regiao regiao) {
-        if (lider == null || jogador == null) return;
+    public String aplicarPoderDoLider(Jogador jogador, Carta lider, List<Carta> bando, Regiao regiao) {
+        if (lider == null || jogador == null) return null;
         PoderDoLider poder = lider.getPoder();
         if (poder == null) {
-            ultimaAcao = "Líder sem poder ativo (" + lider.getTribo() + ")";
-            return;
+            return "Líder sem poder ativo (" + lider.getTribo() + ")";
         }
-        String resultado = poder.executar(this, jogador, bando, regiao);
-        if (resultado != null) {
-            ultimaAcao = resultado;
-        }
+        return poder.executar(this, jogador, bando, regiao);
     }
 
     /**
@@ -521,6 +528,8 @@ public class Partida {
     public int getRodadaAtual() { return rodadaAtual; }
     public boolean isJogoFinalizado() { return jogoFinalizado; }
     public String getUltimaAcao() { return ultimaAcao; }
+    public String getUltimaAcaoPoder() { return ultimaAcaoPoder; }
+    public Carta getUltimoLiderPoder() { return ultimoLiderPoder; }
     public Jogador getJogadorAtual() { return jogadores.get(indiceJogadorAtual); }
     public List<Jogador> getJogadores() { return List.copyOf(jogadores); }
     public Baralho getBaralho() { return baralho; }

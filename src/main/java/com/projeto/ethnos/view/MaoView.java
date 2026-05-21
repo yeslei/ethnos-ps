@@ -66,15 +66,13 @@ public class MaoView extends VBox implements Assinante {
 
     @Override
     public void atualiza(Partida p) {
-        // Quando o turno muda, o jogador "da vez" pode mudar.
+        if (p == null) return;
         Jogador novoJogador = p.getJogadorAtual();
         if (novoJogador != this.jogadorModel) {
-            // Resetar líder ao trocar de jogador.
             this.liderSelecionado = null;
         }
         this.jogadorModel = novoJogador;
-        // Se o líder ainda existir na nova mão, mantém. Se não, limpa.
-        if (this.liderSelecionado != null && !jogadorModel.getMao().contains(this.liderSelecionado)) {
+        if (this.liderSelecionado != null && !this.jogadorModel.getMao().contains(this.liderSelecionado)) {
             this.liderSelecionado = null;
         }
         redesenhar();

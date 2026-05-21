@@ -97,6 +97,8 @@ public class JogoController {
             return;
         }
 
+        mostrarPoderAtivadoSeNecessario(jogadorDaVez, lider);
+
         maoView.limparSelecaoCartas();
         mercadoView.limparSelecao();
         atualizarHabilitacao();
@@ -152,6 +154,20 @@ public class JogoController {
         alert.setTitle(titulo);
         alert.setHeaderText(null);
         alert.setContentText(mensagem);
+        alert.showAndWait();
+    }
+
+    private void mostrarPoderAtivadoSeNecessario(Jogador jogador, Carta lider) {
+        if (lider == null || lider.getPoder() == null) return;
+        String descricao = partida.getUltimaAcaoPoder();
+        if (descricao == null || descricao.isBlank()) return;
+
+        Alert alert = new Alert(AlertType.INFORMATION);
+        alert.setTitle("Poder ativado");
+        alert.setHeaderText("Poder do líder usado");
+        alert.setContentText("Jogador: " + jogador.getNome()
+            + "\nLíder: " + lider.getTribo()
+            + "\nEfeito: " + descricao);
         alert.showAndWait();
     }
 }
