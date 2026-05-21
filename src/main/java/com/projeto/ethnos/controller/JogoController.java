@@ -13,39 +13,52 @@ import javafx.scene.control.Alert.AlertType;
 
 import java.util.List;
 
+/**
+ * Controller do MVC: traduz eventos da UI JavaFX em chamadas à Partida.
+ *
+ * É importante distinguir dois "Controllers" diferentes neste projeto:
+ *
+ *  1. GRASP Controller: é a classe Partida — ela é quem recebe as
+ *     "operações de sistema" (jogar bando, recrutar) e coordena os
+ *     objetos de negócio.
+ *
+ *  2. MVC Controller (esta classe): traduz cliques/eventos do JavaFX
+ *     em chamadas para Partida. Ela não conhece regras do jogo — apenas
+ *     captura entrada, faz validações superficiais de UI e delega.
+ *
+ * Essa separação preserva GRASP Low Coupling: a Partida nunca importa
+ * classes de javafx.
+ */
 public class JogoController {
 
-    private Partida partida;
-    private Jogador jogadorPrincipal;
-    private MercadoView mercadoView;
-    private MaoView maoView;
-    private TabuleiroView tabuleiroView;
-    private StatusView statusView;
+    private final Partida partida;
+    private final MercadoView mercadoView;
+    private final MaoView maoView;
+    private final TabuleiroView tabuleiroView;
+    private final StatusView statusView;
 
-    public JogoController(Partida partida, Jogador jogadorPrincipal, MercadoView mercadoView, MaoView maoView, TabuleiroView tabuleiroView, StatusView statusView) {
+    public JogoController(Partida partida,
+                          MercadoView mercadoView,
+                          MaoView maoView,
+                          TabuleiroView tabuleiroView,
+                          StatusView statusView) {
         this.partida = partida;
-        this.jogadorPrincipal = jogadorPrincipal;
         this.mercadoView = mercadoView;
         this.maoView = maoView;
         this.tabuleiroView = tabuleiroView;
         this.statusView = statusView;
-        
+
         configurarBotoes();
+        atualizarHabilitacao();
     }
 
     private void configurarBotoes() {
-        // Ação: Jogar Bando
-        this.maoView.getBtnJogar().setOnAction(event -> acaoJogarBando());
-        this.maoView.getBtnAtivarPoder().setOnAction(event -> acaoAtivarPoder());
-        
-        // Ação: Recrutar Aliado (Comprar do deck)
-        this.mercadoView.getDeckCompra().setOnMouseClicked(event -> acaoRecrutarAliado());
+        this.maoView.getBtnJogar().setOnAction(e -> acaoJogarBando());
+        this.mercadoView.getDeckCompra().setOnMouseClicked(e -> acaoRecrutarAliado());
     }
 
     private void acaoJogarBando() {
-        if (partida.isJogoFinalizado()) {
-            return;
-        }
+        if (partida.isJogoFinalizado()) return;
         Jogador jogadorDaVez = partida.getJogadorAtual();
         if (jogadorDaVez.isIa()) {
             mostrarInfo("Aguarde", "É o turno da IA.");
@@ -53,100 +66,77 @@ public class JogoController {
         }
 
         List<Carta> cartasSelecionadas = maoView.getCartasSelecionadas();
-        
         if (cartasSelecionadas.isEmpty()) {
             mostrarAviso("Seleção inválida", "Selecione cartas na sua mão primeiro.");
             return;
         }
 
         Carta lider = maoView.getLiderSelecionado();
-        Regiao regiaoSelecionada = tabuleiroView.getRegiaoSelecionada();
+        Regiao regiao = tabuleiroView.getRegiaoSelecionada();
+
         if (lider == null) {
-            mostrarAviso("Seleção inválida", "Selecione um líder na lista antes de jogar o bando.");
+            mostrarAviso("Seleção inválida",
+                "Marque uma carta como líder antes de jogar (botão 'Marcar como líder').");
             return;
         }
         if (!cartasSelecionadas.contains(lider)) {
-            mostrarAviso("Seleção inválida", "O líder escolhido precisa estar entre as cartas selecionadas.");
+            mostrarAviso("Seleção inválida",
+                "O líder marcado não está mais entre as cartas selecionadas. "
+                + "Selecione a carta líder novamente ou marque outra.");
             return;
         }
+        if (regiao == null) {
+            mostrarAviso("Seleção inválida", "Clique em uma região do tabuleiro.");
+            return;
+        }
+
         try {
-            partida.iniciarJogadaDoBando(jogadorDaVez, cartasSelecionadas, lider, regiaoSelecionada);
+            partida.iniciarJogadaDoBando(jogadorDaVez, cartasSelecionadas, lider, regiao);
         } catch (IllegalArgumentException ex) {
             mostrarAviso("Ação não permitida", ex.getMessage());
             return;
         }
 
-        // Melhoria: evita que seleções antigas "vazem" para o próximo turno.
         maoView.limparSelecaoCartas();
         mercadoView.limparSelecao();
-
-        atualizarTelas();
+        atualizarHabilitacao();
         executarTurnoIASeNecessario();
     }
 
     private void acaoRecrutarAliado() {
-        if (partida.isJogoFinalizado()) {
-            return;
-        }
+        if (partida.isJogoFinalizado()) return;
         Jogador jogadorDaVez = partida.getJogadorAtual();
         if (jogadorDaVez.isIa()) {
             mostrarInfo("Aguarde", "É o turno da IA.");
             return;
         }
 
-        Carta escolhidaNoMercado = mercadoView.getCartaSelecionada();
+        Carta escolhida = mercadoView.getCartaSelecionada();
         try {
-            partida.comprarAliado(jogadorDaVez, escolhidaNoMercado);
+            partida.comprarAliado(jogadorDaVez, escolhida);
         } catch (IllegalArgumentException ex) {
             mostrarAviso("Ação não permitida", ex.getMessage());
             return;
         }
 
-        // Melhoria: ao recrutar, limpamos a seleção do mercado.
         mercadoView.limparSelecao();
-        
-        atualizarTelas();
+        atualizarHabilitacao();
         executarTurnoIASeNecessario();
-    }
-
-    private void acaoAtivarPoder() {
-        Jogador jogadorDaVez = partida.getJogadorAtual();
-        if (jogadorDaVez.isIa()) {
-            mostrarInfo("Aguarde", "É o turno da IA.");
-            return;
-        }
-        Carta lider = maoView.getLiderSelecionado();
-        Regiao regiao = tabuleiroView.getRegiaoSelecionada();
-        if (lider == null || regiao == null) {
-            mostrarAviso("Seleção inválida", "Selecione líder e região para ativar o poder.");
-            return;
-        }
-        partida.aplicarPoderDoLider(jogadorDaVez, lider, List.of(lider), regiao);
-        mostrarInfo("Poder do líder", partida.getUltimaAcao());
-        atualizarTelas();
     }
 
     private void executarTurnoIASeNecessario() {
         while (!partida.isJogoFinalizado() && partida.getJogadorAtual().isIa()) {
             partida.jogarTurnoIA();
-            atualizarTelas();
+            atualizarHabilitacao();
         }
     }
 
-    private void atualizarTelas() {
-        Jogador jogadorDaVez = partida.getJogadorAtual();
-        boolean turnoHumano = !jogadorDaVez.isIa() && !partida.isJogoFinalizado();
-
-        // Essencial: impede ações fora do turno (principalmente durante a IA).
-        this.maoView.getBtnJogar().setDisable(!turnoHumano);
-        this.maoView.getBtnAtivarPoder().setDisable(!turnoHumano);
-        this.mercadoView.getDeckCompra().setDisable(!turnoHumano);
-
-        this.maoView.setJogadorModel(jogadorDaVez);
-        maoView.atualizarVisualizacao();
-        mercadoView.atualizarVisualizacao();
-        statusView.atualizarVisualizacao();
-        tabuleiroView.atualizarVisualizacao();
+    /** Bloqueia botões durante turno de IA / fim de jogo. */
+    private void atualizarHabilitacao() {
+        boolean turnoHumano = !partida.getJogadorAtual().isIa() && !partida.isJogoFinalizado();
+        maoView.getBtnJogar().setDisable(!turnoHumano);
+        maoView.getBtnMarcarLider().setDisable(!turnoHumano);
+        mercadoView.getDeckCompra().setDisable(!turnoHumano);
     }
 
     private void mostrarAviso(String titulo, String mensagem) {

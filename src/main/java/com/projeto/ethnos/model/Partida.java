@@ -1,513 +1,123 @@
 package com.projeto.ethnos.model;
 
-import java.util.List;
+import com.projeto.ethnos.model.carta.Dragao;
+import com.projeto.ethnos.model.poder.PoderDoLider;
+import com.projeto.ethnos.observer.Assinante;
+
 import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.List;
 
+/**
+ * Classe central do jogo.
+ *
+ * Padrões aplicados (todos referenciados no diagrama de classes da Parte 2):
+ *
+ *  - GoF Observer (papel de Subject):
+ *      Mantém uma lista de Assinantes e fornece adicionaAssinante,
+ *      removeAssinante e notifica(). Todas as ações de turno chamam
+ *      notifica() ao final para que as Views se atualizem.
+ *
+ *  - GRASP Controller:
+ *      Partida concentra a coordenação das operações de sistema (jogar
+ *      bando, recrutar aliado, iniciar/terminar era). É o ponto de entrada
+ *      a partir da UI/Controller.
+ *
+ *  - GRASP Low Coupling:
+ *      Partida não conhece JavaFX. Conversa com a UI apenas pela interface
+ *      Assinante. Trocar a UI (JavaFX → console, web, mobile) não afeta
+ *      esta classe.
+ *
+ *  - GoF Strategy (delegação):
+ *      Os poderes dos líderes não vivem aqui. Partida delega para
+ *      lider.getPoder().executar(...). O switch por tribo desapareceu.
+ *
+ *  - GoF Factory Method (indireta):
+ *      A criação de cartas é responsabilidade de CartaFactory. Partida
+ *      recebe um baralho já populado, mantendo-se desacoplada das
+ *      classes concretas de Carta.
+ */
 public class Partida {
+
     private static final int LIMITE_MAO = 10;
-    private List<Jogador> jogadores;
-    private Baralho baralho;
-    private Mercado mercado;
-    private Tabuleiro tabuleiro;
+    private static final int ERAS_TOTAIS = 3;
+    private static final int DRAGOES_FIM_ERA = 3;
+    private static final int CARTAS_ABERTAS_MERCADO = 5;
+
+    // --- Estado do jogo ---
+    private final List<Jogador> jogadores;
+    private final Baralho baralho;
+    private final Mercado mercado;
+    private final Tabuleiro tabuleiro;
+
     private int eraAtual;
     private int dragoesRevelados;
     private int indiceJogadorAtual;
-    private boolean jogoFinalizado;
-    private List<Jogador> vencedores;
     private int rodadaAtual;
+
+    private boolean jogoFinalizado;
+    private final List<Jogador> vencedores = new ArrayList<>();
     private String ultimaAcao;
-    private int turnoPowerRodada = -1;
-    private Jogador turnoPowerJogador = null;
     private boolean setupInicialAtivo;
 
+    // --- Observer (papel de Subject) ---
+    private final List<Assinante> assinantes = new ArrayList<>();
+
     public Partida(List<Jogador> jogadores, Baralho baralho, Mercado mercado, Tabuleiro tabuleiro) {
-        this.jogadores = jogadores;
+        if (jogadores == null || jogadores.size() < 2 || jogadores.size() > 6) {
+            throw new IllegalArgumentException("Partida exige de 2 a 6 jogadores");
+        }
+        this.jogadores = new ArrayList<>(jogadores);
         this.baralho = baralho;
         this.mercado = mercado;
         this.tabuleiro = tabuleiro;
         this.eraAtual = 0;
         this.dragoesRevelados = 0;
         this.indiceJogadorAtual = 0;
-        this.jogoFinalizado = false;
-        this.vencedores = new ArrayList<>();
         this.rodadaAtual = 1;
+        this.jogoFinalizado = false;
         this.ultimaAcao = "Partida iniciada";
         this.setupInicialAtivo = true;
     }
 
-    public void registrarCompraDeCarta(Carta carta) {
-        if (jogoFinalizado || carta == null) {
-            return;
-        }
+    // ====================================================================
+    // OBSERVER: gerência de assinantes
+    // ====================================================================
 
-        // BUG corrigido: não verificamos fim de era aqui.
-        // Motivo: o setup inicial (revelar mercado) também compra do topo e pode revelar Dragões.
-        // O fim de era deve ser verificado após uma ação real de turno (comprar/jogar bando),
-        // evitando começar o jogo já pulando eras automaticamente.
-        if (carta != null && "Dragão".equalsIgnoreCase(carta.tribo)) {
-            dragoesRevelados++;
-            System.out.println("Um dragão foi revelado! Total: " + dragoesRevelados);
+    public void adicionaAssinante(Assinante obs) {
+        if (obs != null && !assinantes.contains(obs)) {
+            assinantes.add(obs);
         }
     }
 
-    public void iniciarEra() {
-        if (jogoFinalizado) {
-            return;
-        }
-
-        eraAtual++;
-        dragoesRevelados = 0;
-        // Setup pedido: não permitir Dragões no setup inicial (mãos/mercado).
-        // Após o setup, dragões voltam a poder aparecer normalmente.
-        revelarCartasIniciais(setupInicialAtivo);
+    public void removeAssinante(Assinante obs) {
+        assinantes.remove(obs);
     }
 
-    private void finalizarEra() {
-        // Essencial: a limpeza acontece NO FIM da era, não no início.
-        // - descarta as cartas abertas do mercado
-        // - descarta a mão de todos os jogadores
-        // Observação: os marcadores no tabuleiro permanecem (representam presença/controle).
-        baralho.descartarCartas(mercado.retirarTodas());
-        for (Jogador jogador : jogadores) {
-            baralho.descartarCartas(new ArrayList<>(jogador.mao));
-            jogador.mao.clear();
+    /** Notifica todos os assinantes sobre uma mudança de estado. */
+    public void notifica() {
+        // Cópia defensiva: assinantes podem se remover durante atualiza().
+        for (Assinante a : new ArrayList<>(assinantes)) {
+            a.atualiza(this);
         }
     }
 
-    public List<Carta> revelarCartasIniciais() {
-        return revelarCartasIniciais(false);
-    }
-
-    private List<Carta> revelarCartasIniciais(boolean ignorarDragoes) {
-        List<Carta> reveladas = new ArrayList<>();
-        // Segurança: se durante o setup só existirem Dragões disponíveis, não podemos ficar em loop infinito
-        // tentando completar o mercado. Limitamos o número de compras com base no tamanho do monte+descarte.
-        int limiteCompras = baralho.qntdRestante() + baralho.qntdDescarte() + 10;
-        int comprasFeitas = 0;
-        while (mercado.getCartasDisponiveis().size() < 5 && !baralho.semCartasDisponiveis()) {
-            if (comprasFeitas++ >= limiteCompras) {
-                ultimaAcao = "Setup: não foi possível completar o mercado sem Dragões";
-                break;
-            }
-            Carta topo = baralho.comprarDoTopo();
-            if (topo == null) {
-                break;
-            }
-            if ("Dragão".equalsIgnoreCase(topo.tribo)) {
-                // Setup inicial: não revela/conta Dragões no começo.
-                // Eles são descartados e podem voltar mais tarde via reciclagem.
-                baralho.descartarCarta(topo);
-                if (!ignorarDragoes) {
-                    registrarCompraDeCarta(topo);
-                }
-            } else {
-                // Só conta compras/revelações não-dragão para manter consistência de logs/última ação.
-                registrarCompraDeCarta(topo);
-                mercado.adicionarCartas(List.of(topo));
-                reveladas.add(topo);
-            }
-            if (jogoFinalizado) {
-                break;
-            }
-        }
-        return reveladas;
-    }
-
-    public void comprarAliado(Jogador jogador, Carta cartaMercadoSelecionada) {
-        if (jogoFinalizado || jogador == null) {
-            return;
-        }
-        if (jogador != getJogadorAtual()) {
-            throw new IllegalArgumentException("Não é o turno deste jogador.");
-        }
-        if (jogador.mao.size() >= LIMITE_MAO) {
-            // Regra essencial: no Ethnos a mão tem limite.
-            throw new IllegalArgumentException("Limite de mão atingido (10 cartas). Jogue um bando antes de recrutar.");
-        }
-
-        Carta cartaComprada;
-        if (cartaMercadoSelecionada != null) {
-            cartaComprada = mercado.comprarCarta(cartaMercadoSelecionada);
-        } else {
-            cartaComprada = baralho.comprarDoTopo();
-        }
-
-        if (cartaComprada != null) {
-            if ("Dragão".equalsIgnoreCase(cartaComprada.tribo)) {
-                // BUG corrigido: Dragões não entram na mão; eles são revelados e vão para o descarte.
-                baralho.descartarCarta(cartaComprada);
-                registrarCompraDeCarta(cartaComprada);
-                ultimaAcao = "Dragão revelado ao recrutar (contador: " + dragoesRevelados + ")";
-            } else {
-                jogador.mao.add(cartaComprada);
-                registrarCompraDeCarta(cartaComprada);
-                ultimaAcao = "Recrutou " + cartaComprada + " para a mão";
-            }
-            revelarCartasIniciais();
-        } else {
-            ultimaAcao = "Sem cartas para recrutar";
-        }
-
-        // BUG corrigido: mesmo se não houver carta para comprar, o turno precisa terminar.
-        // Caso contrário, a IA (ou o humano) fica "preso" e pode tentar comprar em loop.
-        verificarFimDeEra();
-        proximoJogador();
-    }
-
-    public void verificarFimDeEra() {
-        if (jogoFinalizado) {
-            return;
-        }
-
-        // BUG corrigido: o baralho "não acabou" se ainda existe descarte para reciclar.
-        if (dragoesRevelados >= 3 || baralho.semCartasDisponiveis()) {
-            finalizarEra();
-
-            // Essencial: pontuação de fim de era por ranking de fichas em cada região.
-            // Implementação: conta marcadores por jogador e aplica valoresPontuacao por posição.
-            for (Regiao regiao : tabuleiro.getTodasRegioes()) {
-                List<Jogador> ranking = regiao.rankingJogadoresPorMarcadores();
-                for (int pos = 0; pos < ranking.size(); pos++) {
-                    Jogador jogador = ranking.get(pos);
-                    int pontos = regiao.getPontuacao(pos);
-                    jogador.adicionarPontos(pontos);
-                }
-            }
-
-            if (eraAtual >= 3) {
-                finalizarJogo();
-            } else {
-                iniciarEra();
-            }
-        }
-    }
-
-    public void finalizarJogo() {
-        this.jogoFinalizado = true;
-        int maiorPontuacao = Integer.MIN_VALUE;
-        vencedores.clear();
-
-        for (Jogador jogador : jogadores) {
-            if (jogador.getPontuacao() > maiorPontuacao) {
-                maiorPontuacao = jogador.getPontuacao();
-                vencedores.clear();
-                vencedores.add(jogador);
-            } else if (jogador.getPontuacao() == maiorPontuacao) {
-                vencedores.add(jogador);
-            }
-        }
-
-        if (vencedores.size() == 1) {
-            System.out.println("Fim do jogo! Vencedor: " + vencedores.get(0).getNome());
-        } else if (!vencedores.isEmpty()) {
-            System.out.println("Fim do jogo com empate entre: " + getNomesVencedores());
-        }
-    }
-
-    public int getDragoesRevelados() { return dragoesRevelados; }
-    public int getEraAtual() { return eraAtual; }
-    public int getRodadaAtual() { return rodadaAtual; }
-    public String getUltimaAcao() { return ultimaAcao; }
-    public boolean isJogoFinalizado() { return jogoFinalizado; }
-    public Jogador getJogadorAtual() { return jogadores.get(indiceJogadorAtual); }
-    public List<Jogador> getJogadores() { return jogadores; }
-    public Baralho getBaralho() { return baralho; }
-    public Mercado getMercado() { return mercado; }
-    public List<Jogador> getVencedores() { return List.copyOf(vencedores); }
-    public boolean isEmpateFinal() { return vencedores.size() > 1; }
-
-    public String getNomesVencedores() {
-        StringBuilder nomes = new StringBuilder();
-        for (int i = 0; i < vencedores.size(); i++) {
-            nomes.append(vencedores.get(i).getNome());
-            if (i < vencedores.size() - 1) {
-                nomes.append(", ");
-            }
-        }
-        return nomes.toString();
-    }
-    
-    public void iniciarJogadaDoBando(Jogador j, List<Carta> bando, Carta lider, Regiao regiaoEscolhida) {
-        if (jogoFinalizado || j == null || bando == null || bando.isEmpty() || lider == null) {
-            return;
-        }
-        if (j != getJogadorAtual()) {
-            throw new IllegalArgumentException("Não é o turno deste jogador.");
-        }
-        if (!bando.contains(lider)) {
-            throw new IllegalArgumentException("O líder precisa estar dentro do bando selecionado.");
-        }
-        if (regiaoEscolhida == null) {
-            throw new IllegalArgumentException("Selecione uma região para posicionar a ficha.");
-        }
-
-        boolean todasMesmoTipo = true;
-        for (Carta carta : bando) {
-            boolean combinaCor = carta.cor.equalsIgnoreCase(lider.cor);
-            boolean combinaTribo = carta.tribo.equalsIgnoreCase(lider.tribo);
-            if (!combinaCor && !combinaTribo) {
-                todasMesmoTipo = false;
-                break;
-            }
-        }
-        if (!todasMesmoTipo) {
-            throw new IllegalArgumentException("Todas as cartas do bando devem combinar em cor ou tribo com o líder.");
-        }
-
-        regiaoEscolhida.adicionarMarcador(j);
-        j.adicionarPontos(regiaoEscolhida.getPontuacao(0));
-
-        // Regra prática: o líder define a região "preferida" por cor.
-        // Se jogador escolher outra região, mantemos a escolha manual para suportar UX pedida.
-        Regiao regiaoDaCor = this.tabuleiro.getRegiao(lider.cor);
-        if (regiaoDaCor == null) {
-            System.out.println("Aviso: líder sem região de cor correspondente no tabuleiro.");
-        }
-
-        j.jogarBando(bando, lider);
-        j.adicionarPontos(calcularPontosDoBando(lider, bando));
-
-        // As sobras vão para o mercado e a mão é limpa ao final da jogada.
-        this.mercado.adicionarCartas(j.mao);
-        j.mao.clear();
-
-        aplicarPoderDoLider(j, lider, bando, regiaoEscolhida);
-        verificarFimDeEra();
-        proximoJogador();
-        revelarCartasIniciais();
-    }
-
-    private int calcularPontosDoBando(Carta lider, List<Carta> bando) {
-        int base = bando.size();
-        if ("Anão".equalsIgnoreCase(lider.tribo)) {
-            // Poder passivo simples: anões valorizam banda numerosa.
-            return base + 1;
-        }
-        return base;
-    }
-
-    public void aplicarPoderDoLider(Jogador jogador, Carta lider, List<Carta> bando, Regiao regiaoEscolhida) {
-        if (lider == null || jogador == null) {
-            return;
-        }
-
-        // BUG corrigido: evitamos aplicar o poder mais de uma vez no mesmo turno do jogador.
-        // (O poder já é aplicado automaticamente ao jogar o bando; o botão serve como "teste" manual.)
-        if (turnoPowerJogador == jogador && turnoPowerRodada == rodadaAtual) {
-            ultimaAcao = "Poder já foi usado neste turno (" + jogador.getNome() + ")";
-            return;
-        }
-
-        // Comentário de bugfix: antes o método ativaPoder() não fazia nada no fluxo real.
-        // Agora o poder do líder gera efeito concreto de partida.
-        lider.ativaPoder();
-        String tribo = lider.tribo == null ? "" : lider.tribo.toLowerCase();
-        switch (tribo) {
-            case "anão":
-                jogador.adicionarPontos(1);
-                ultimaAcao = "Poder (Anão): +" + 1 + " ponto para " + jogador.getNome();
-                break;
-            case "gigante":
-                jogador.adicionarPontos(2);
-                ultimaAcao = "Poder (Gigante): +" + 2 + " pontos para " + jogador.getNome();
-                break;
-            case "elfo":
-                // BUG corrigido: se o bando tiver só 1 carta (o líder), não deve "voltar" a própria carta.
-                // Recupera uma carta do bando diferente do líder, quando existir.
-                Carta recuperada = null;
-                for (Carta carta : bando) {
-                    if (carta != lider) {
-                        recuperada = carta;
-                        break;
-                    }
-                }
-                if (recuperada != null) {
-                    jogador.mao.add(recuperada);
-                    ultimaAcao = "Poder (Elfo): recupera " + recuperada + " para a mão de " + jogador.getNome();
-                } else {
-                    ultimaAcao = "Poder (Elfo): sem carta para recuperar (bando com 1 carta)";
-                }
-                break;
-            case "dragão":
-                dragoesRevelados = Math.max(0, dragoesRevelados - 1);
-                ultimaAcao = "Poder (Dragão): reduz contador de dragões para " + dragoesRevelados;
-                break;
-            case "centauro":
-                // Compra 1 carta do topo (respeitando limite de mão e regras de dragões).
-                comprarCartaTopoParaMao(jogador);
-                break;
-            case "minotauro":
-                // Bônus simples de agressividade.
-                jogador.adicionarPontos(2);
-                ultimaAcao = "Poder (Minotauro): +" + 2 + " pontos para " + jogador.getNome();
-                break;
-            case "esqueleto":
-                // MVP: efeito simples (dreno simbólico).
-                Jogador alvo = escolherAlvoParaEsqueleto(jogador);
-                if (alvo != null) {
-                    jogador.adicionarPontos(1);
-                    ultimaAcao = "Poder (Esqueleto): +" + 1 + " ponto (dreno de " + alvo.getNome() + ")";
-                } else {
-                    ultimaAcao = "Poder (Esqueleto): sem alvo";
-                }
-                break;
-            case "mago":
-                // Compra 1 carta do mercado (primeira); se vazio, compra do topo.
-                Carta mercadoCarta = mercado.comprarCarta();
-                if (mercadoCarta != null) {
-                    if ("Dragão".equalsIgnoreCase(mercadoCarta.tribo)) {
-                        baralho.descartarCarta(mercadoCarta);
-                        registrarCompraDeCarta(mercadoCarta);
-                        ultimaAcao = "Poder (Mago): revelou Dragão no mercado";
-                    } else if (jogador.mao.size() < LIMITE_MAO) {
-                        jogador.mao.add(mercadoCarta);
-                        ultimaAcao = "Poder (Mago): comprou do mercado " + mercadoCarta;
-                    } else {
-                        baralho.descartarCarta(mercadoCarta);
-                        ultimaAcao = "Poder (Mago): mão cheia, carta do mercado foi descartada";
-                    }
-                } else {
-                    comprarCartaTopoParaMao(jogador);
-                }
-                revelarCartasIniciais();
-                break;
-            case "troll":
-                // +1 ponto por carta do bando (mínimo 1)
-                int bonus = Math.max(1, bando != null ? bando.size() : 1);
-                jogador.adicionarPontos(bonus);
-                ultimaAcao = "Poder (Troll): +" + bonus + " pontos para " + jogador.getNome();
-                break;
-            default:
-                ultimaAcao = "Poder (" + lider.tribo + "): sem efeito implementado";
-                break;
-        }
-
-        turnoPowerJogador = jogador;
-        turnoPowerRodada = rodadaAtual;
-    }
-
-    private void comprarCartaTopoParaMao(Jogador jogador) {
-        if (jogador.mao.size() >= LIMITE_MAO) {
-            ultimaAcao = "Poder: mão cheia (limite 10), sem compra";
-            return;
-        }
-        Carta comprada = baralho.comprarDoTopo();
-        if (comprada == null) {
-            ultimaAcao = "Poder: sem cartas para comprar";
-            return;
-        }
-        if ("Dragão".equalsIgnoreCase(comprada.tribo)) {
-            baralho.descartarCarta(comprada);
-            registrarCompraDeCarta(comprada);
-            ultimaAcao = "Poder: revelou Dragão (contador: " + dragoesRevelados + ")";
-            return;
-        }
-        jogador.mao.add(comprada);
-        ultimaAcao = "Poder: comprou " + comprada + " do topo";
-    }
-
-    private Jogador escolherAlvoParaEsqueleto(Jogador atual) {
-        for (Jogador j : jogadores) {
-            if (j != atual) {
-                return j;
-            }
-        }
-        return null;
-    }
-
-    public void jogarTurnoIA() {
-        if (jogoFinalizado || jogadores.isEmpty()) {
-            return;
-        }
-        Jogador ia = getJogadorAtual();
-        if (!ia.isIa()) {
-            return;
-        }
-
-        // Melhoria: a IA agora tenta formar o maior bando válido possível
-        // antes de simplesmente baixar a primeira carta da mão.
-        if (!ia.mao.isEmpty()) {
-            JogadaIA jogada = escolherMelhorJogadaIA(ia);
-            iniciarJogadaDoBando(ia, jogada.bando(), jogada.lider(), jogada.regiao());
-        } else {
-            comprarAliado(ia, escolherCartaMercadoParaIA(ia));
-        }
-    }
-
-    private JogadaIA escolherMelhorJogadaIA(Jogador ia) {
-        Carta melhorLider = ia.mao.get(0);
-        List<Carta> melhorBando = List.of(melhorLider);
-
-        for (Carta candidata : ia.mao) {
-            List<Carta> bandoAtual = new ArrayList<>();
-            for (Carta carta : ia.mao) {
-                boolean combinaCor = carta.cor.equalsIgnoreCase(candidata.cor);
-                boolean combinaTribo = carta.tribo.equalsIgnoreCase(candidata.tribo);
-                if (combinaCor || combinaTribo) {
-                    bandoAtual.add(carta);
-                }
-            }
-
-            if (bandoAtual.size() > melhorBando.size()) {
-                melhorLider = candidata;
-                melhorBando = bandoAtual;
-            }
-        }
-
-        Regiao destino = escolherMelhorRegiaoParaIA(melhorLider);
-        return new JogadaIA(melhorLider, melhorBando, destino);
-    }
-
-    private Regiao escolherMelhorRegiaoParaIA(Carta lider) {
-        Regiao regiaoDaCor = tabuleiro.getRegiao(lider.cor);
-        if (regiaoDaCor != null) {
-            return regiaoDaCor;
-        }
-
-        // Caso a cor da carta não tenha correspondência direta, escolhemos a região
-        // com maior pontuação base disponível.
-        return tabuleiro.getTodasRegioes().stream()
-            .max(Comparator.comparingInt(regiao -> regiao.getPontuacao(0)))
-            .orElse(tabuleiro.getTodasRegioes().get(0));
-    }
-
-    private Carta escolherCartaMercadoParaIA(Jogador ia) {
-        for (Carta cartaMercado : mercado.getCartasDisponiveis()) {
-            for (Carta cartaMao : ia.mao) {
-                boolean combinaCor = cartaMercado.cor.equalsIgnoreCase(cartaMao.cor);
-                boolean combinaTribo = cartaMercado.tribo.equalsIgnoreCase(cartaMao.tribo);
-                if (combinaCor || combinaTribo) {
-                    return cartaMercado;
-                }
-            }
-        }
-        return null;
-    }
-
-    private record JogadaIA(Carta lider, List<Carta> bando, Regiao regiao) {
-    }
-
-    private void proximoJogador() {
-        if (!jogadores.isEmpty()) {
-            int anterior = indiceJogadorAtual;
-            indiceJogadorAtual = (indiceJogadorAtual + 1) % jogadores.size();
-            // Incrementa rodada quando volta ao primeiro jogador (ciclo completo).
-            if (anterior == jogadores.size() - 1 && indiceJogadorAtual == 0) {
-                rodadaAtual++;
-            }
-        }
-    }
+    // ====================================================================
+    // SETUP (chamado por EthnosApp uma vez no início)
+    // ====================================================================
 
     public void distribuirFichas() {
-        for (Jogador jogador : jogadores) {
-            jogador.distribuirFicha(null);
+        for (Jogador j : jogadores) {
+            j.distribuirFicha(null);
         }
     }
 
+    /**
+     * Distribuição inicial das mãos. A quantidade varia com o número de
+     * jogadores. Dragões revelados durante a distribuição inicial vão para
+     * o descarte sem contar para o fim de era.
+     */
     public void distribuirMaosIniciais() {
-        // Assunção de MVP: mão inicial varia com número de jogadores.
-        // (Isso evita começar com "2 cartas fixas" e deixa o jogo mais consistente.)
         int qtdJogadores = jogadores.size();
         int cartasPorJogador;
         if (qtdJogadores <= 2) {
@@ -519,22 +129,412 @@ public class Partida {
         }
 
         for (Jogador jogador : jogadores) {
-            while (jogador.mao.size() < cartasPorJogador && !baralho.semCartasDisponiveis()) {
+            while (jogador.getMao().size() < cartasPorJogador && !baralho.semCartasDisponiveis()) {
                 Carta comprada = baralho.comprarDoTopo();
                 if (comprada == null) {
                     break;
                 }
-                if ("Dragão".equalsIgnoreCase(comprada.tribo)) {
-                    // Setup pedido: Dragões não entram na mão inicial e nem contam como revelados aqui.
+                if (Dragao.ehDragao(comprada)) {
                     baralho.descartarCarta(comprada);
                     continue;
                 }
-                jogador.mao.add(comprada);
+                jogador.getMao().add(comprada);
+            }
+        }
+        ultimaAcao = "Mãos distribuídas (" + cartasPorJogador + " cartas por jogador)";
+        this.setupInicialAtivo = false;
+    }
+
+    /** Operação do diagrama: iniciarEra(). */
+    public void iniciarEra() {
+        if (jogoFinalizado) return;
+        eraAtual++;
+        dragoesRevelados = 0;
+        revelarCartasRaca(setupInicialAtivo);
+        notifica();
+    }
+
+    /**
+     * Operação do diagrama: revelaCartasRaca().
+     * Preenche o mercado até atingir o tamanho-alvo. Dragões revelados
+     * fora do setup contam para o fim de era.
+     */
+    public List<Carta> revelarCartasRaca() {
+        return revelarCartasRaca(false);
+    }
+
+    private List<Carta> revelarCartasRaca(boolean ignorarDragoes) {
+        List<Carta> reveladas = new ArrayList<>();
+        // Evita loop infinito em situações degeneradas.
+        int limite = baralho.qntdRestante() + baralho.qntdDescarte() + 10;
+        int compras = 0;
+        while (mercado.tamanho() < CARTAS_ABERTAS_MERCADO && !baralho.semCartasDisponiveis()) {
+            if (compras++ >= limite) break;
+            Carta topo = baralho.comprarDoTopo();
+            if (topo == null) break;
+            if (Dragao.ehDragao(topo)) {
+                baralho.descartarCarta(topo);
+                if (!ignorarDragoes) {
+                    dragoesRevelados++;
+                    if (dragoesRevelados < DRAGOES_FIM_ERA) {
+                        ultimaAcao = "Dragão " + dragoesRevelados + "/3 revelado (sem efeito)";
+                    } else {
+                        ultimaAcao = "Terceiro dragão revelado - fim da era!";
+                    }
+                }
+            } else {
+                mercado.adicionarCartas(List.of(topo));
+                reveladas.add(topo);
+            }
+        }
+        return reveladas;
+    }
+
+    // ====================================================================
+    // OPERAÇÕES DE TURNO (chamadas pelo Controller)
+    // ====================================================================
+
+    /**
+     * Recrutar Aliado: o jogador da vez compra uma carta do mercado
+     * (se especificada) ou do topo do baralho.
+     */
+    public void comprarAliado(Jogador jogador, Carta cartaMercadoSelecionada) {
+        if (jogoFinalizado || jogador == null) return;
+        if (jogador != getJogadorAtual()) {
+            throw new IllegalArgumentException("Não é o turno deste jogador.");
+        }
+        if (jogador.getMao().size() >= LIMITE_MAO) {
+            throw new IllegalArgumentException(
+                "Limite de mão atingido (" + LIMITE_MAO + " cartas). Jogue um bando antes de recrutar.");
+        }
+
+        Carta comprada;
+        if (cartaMercadoSelecionada != null) {
+            comprada = mercado.comprarCarta(cartaMercadoSelecionada);
+        } else {
+            comprada = baralho.comprarDoTopo();
+        }
+
+        if (comprada != null) {
+            if (Dragao.ehDragao(comprada)) {
+                baralho.descartarCarta(comprada);
+                dragoesRevelados++;
+                if (dragoesRevelados < DRAGOES_FIM_ERA) {
+                    ultimaAcao = "Dragão " + dragoesRevelados + "/3 revelado ao recrutar (sem efeito)";
+                } else {
+                    ultimaAcao = "Terceiro dragão revelado ao recrutar - fim da era!";
+                }
+            } else {
+                jogador.getMao().add(comprada);
+                ultimaAcao = jogador.getNome() + " recrutou " + comprada;
+            }
+            revelarCartasRaca();
+        } else {
+            ultimaAcao = "Sem cartas para recrutar";
+        }
+
+        verificarFimDeEra();
+        proximoJogador();
+        notifica();
+    }
+
+    /**
+     * Operação principal: jogar um bando.
+     *
+     * Passos:
+     *  1. Validar dono do turno, líder dentro do bando e região válida.
+     *  2. Validar combinação de cor/tribo do bando com o líder.
+     *  3. Pedir ao Jogador que crie o Bando (Creator).
+     *  4. Adicionar marcador na região e contabilizar pontos do bando.
+     *  5. Aplicar o poder do líder via Strategy (lider.getPoder()).
+     *  6. Devolver sobras da mão para o mercado.
+     *  7. Verificar fim de era, avançar turno, notificar.
+     */
+    public void iniciarJogadaDoBando(Jogador j, List<Carta> bando, Carta lider, Regiao regiao) {
+        if (jogoFinalizado || j == null || bando == null || bando.isEmpty() || lider == null) {
+            return;
+        }
+        if (j != getJogadorAtual()) {
+            throw new IllegalArgumentException("Não é o turno deste jogador.");
+        }
+        if (!bando.contains(lider)) {
+            throw new IllegalArgumentException("O líder precisa estar dentro do bando selecionado.");
+        }
+        if (regiao == null) {
+            throw new IllegalArgumentException("Selecione uma região para posicionar a ficha.");
+        }
+
+        // Validação de coerência do bando.
+        for (Carta carta : bando) {
+            boolean combinaCor = carta.getCor().equalsIgnoreCase(lider.getCor());
+            boolean combinaTribo = carta.getTribo().equalsIgnoreCase(lider.getTribo());
+            if (!combinaCor && !combinaTribo) {
+                throw new IllegalArgumentException(
+                    "Todas as cartas do bando devem combinar em cor ou tribo com o líder.");
             }
         }
 
-        ultimaAcao = "Mãos iniciais distribuídas (" + cartasPorJogador + " cartas por jogador)";
-        // Encerra o modo de setup: a partir daqui dragões podem aparecer normalmente.
-        this.setupInicialAtivo = false;
+        // Regra do Ethnos: para plantar o N-ésimo marcador na região, o bando
+        // precisa ter no mínimo N cartas. Ou seja, o tamanho do bando deve ser
+        // estritamente maior que a quantidade de marcadores que o jogador já
+        // tem na região. Minotauro como líder reduz o requisito em 1.
+        int marcadoresPresentes = contarMarcadoresDoJogadorNaRegiao(j, regiao);
+        int tamanhoMinimo = marcadoresPresentes + 1;
+        if (lider instanceof com.projeto.ethnos.model.carta.Minotauro) {
+            tamanhoMinimo = Math.max(1, tamanhoMinimo - 1);
+        }
+        if (bando.size() < tamanhoMinimo) {
+            throw new IllegalArgumentException(
+                "Bando muito pequeno para essa região: você já tem "
+                + marcadoresPresentes + " marcador(es) lá, o bando precisa de pelo menos "
+                + tamanhoMinimo + " carta(s).");
+        }
+
+        // GRASP Creator: o Jogador cria o Bando.
+        Bando bandoCriado = j.jogarBando(bando, lider);
+
+        // Marcar presença na região e contar pontos.
+        regiao.adicionarMarcador(j);
+        j.adicionarPontos(bandoCriado.calcularPontos());
+
+        // Sobras da mão vão para o mercado (regra do jogo).
+        if (!j.getMao().isEmpty()) {
+            mercado.adicionarCartas(new ArrayList<>(j.getMao()));
+            j.getMao().clear();
+        }
+
+        // GoF Strategy: aplica o poder do líder polimorficamente.
+        lider.ativaPoder(); // operação do diagrama (apenas registra)
+        aplicarPoderDoLider(j, lider, bandoCriado.getCartas(), regiao);
+
+        ultimaAcao = j.getNome() + " baixou " + bandoCriado.getTamanho()
+                   + " cartas em " + regiao.getNome() + " (líder: " + lider.getTribo() + ")";
+
+        verificarFimDeEra();
+        proximoJogador();
+        revelarCartasRaca();
+        notifica();
+    }
+
+    /**
+     * Aplica o poder do líder via Strategy. Não conhece as tribos
+     * específicas: apenas pede o PoderDoLider à carta e executa.
+     */
+    public void aplicarPoderDoLider(Jogador jogador, Carta lider, List<Carta> bando, Regiao regiao) {
+        if (lider == null || jogador == null) return;
+        PoderDoLider poder = lider.getPoder();
+        if (poder == null) {
+            ultimaAcao = "Líder sem poder ativo (" + lider.getTribo() + ")";
+            return;
+        }
+        String resultado = poder.executar(this, jogador, bando, regiao);
+        if (resultado != null) {
+            ultimaAcao = resultado;
+        }
+    }
+
+    /**
+     * Helper usado por poderes (Mago, Centauro) que precisam comprar uma
+     * carta do baralho. Cuida de revelar dragões e respeitar limite de mão.
+     */
+    public Carta comprarParaMao(Jogador jogador) {
+        if (jogador.getMao().size() >= LIMITE_MAO) return null;
+        Carta comprada = baralho.comprarDoTopo();
+        if (comprada == null) return null;
+        if (Dragao.ehDragao(comprada)) {
+            baralho.descartarCarta(comprada);
+            dragoesRevelados++;
+            return null;
+        }
+        jogador.getMao().add(comprada);
+        return comprada;
+    }
+
+    /** Conta quantos marcadores um jogador já tem em uma região específica. */
+    public int contarMarcadoresDoJogadorNaRegiao(Jogador jogador, Regiao regiao) {
+        if (jogador == null || regiao == null) return 0;
+        int contagem = 0;
+        for (Jogador j : regiao.getMarcadores()) {
+            if (j == jogador) contagem++;
+        }
+        return contagem;
+    }
+
+    // ====================================================================
+    // FIM DE ERA E DE JOGO
+    // ====================================================================
+
+    /** Operação do diagrama: verificarFimDeEra(). */
+    public void verificarFimDeEra() {
+        if (jogoFinalizado) return;
+        if (dragoesRevelados >= DRAGOES_FIM_ERA || baralho.semCartasDisponiveis()) {
+            finalizarEra();
+            if (eraAtual >= ERAS_TOTAIS) {
+                finalizarJogo();
+            } else {
+                iniciarEra();
+            }
+        }
+    }
+
+    private void finalizarEra() {
+        // Pontuação por região, baseada em ranking de marcadores (Information Expert).
+        // Na era N, apenas as N primeiras colocações pontuam (regra oficial).
+        for (Regiao r : tabuleiro.getTodasRegioes()) {
+            List<Jogador> ranking = r.rankingJogadoresPorMarcadores();
+            for (int pos = 0; pos < ranking.size(); pos++) {
+                Jogador j = ranking.get(pos);
+                int pontos = r.getPontuacao(pos, eraAtual);
+                j.adicionarPontos(pontos);
+            }
+        }
+
+        // Limpeza: mercado e mãos vão para o descarte.
+        baralho.descartarCartas(mercado.retirarTodas());
+        for (Jogador j : jogadores) {
+            baralho.descartarCartas(new ArrayList<>(j.getMao()));
+            j.getMao().clear();
+        }
+        ultimaAcao = "Fim da Era " + eraAtual + ": pontuação contabilizada";
+    }
+
+    /** Operação do diagrama: finalizarJogo(). */
+    public void finalizarJogo() {
+        this.jogoFinalizado = true;
+        vencedores.clear();
+        int maiorPontuacao = jogadores.stream()
+            .mapToInt(Jogador::getPontuacao).max().orElse(0);
+        for (Jogador j : jogadores) {
+            if (j.getPontuacao() == maiorPontuacao) {
+                vencedores.add(j);
+            }
+        }
+        if (!vencedores.isEmpty()) {
+            ultimaAcao = "Fim do jogo. " + getNomesVencedores() + " venceu com "
+                       + maiorPontuacao + " pontos.";
+        }
+    }
+
+    // ====================================================================
+    // IA SIMPLES (não é um padrão por si só, mas mantida para demonstração)
+    // ====================================================================
+
+    public void jogarTurnoIA() {
+        if (jogoFinalizado || jogadores.isEmpty()) return;
+        Jogador ia = getJogadorAtual();
+        if (!ia.isIa()) return;
+
+        if (!ia.getMao().isEmpty()) {
+            JogadaIA jogada = escolherMelhorJogadaIA(ia);
+            if (jogada != null && jogada.regiao != null) {
+                iniciarJogadaDoBando(ia, jogada.bando, jogada.lider, jogada.regiao);
+                return;
+            }
+            // Nenhum bando válido para nenhuma região -> recruta.
+            comprarAliado(ia, escolherCartaMercadoParaIA(ia));
+        } else {
+            comprarAliado(ia, escolherCartaMercadoParaIA(ia));
+        }
+    }
+
+    private JogadaIA escolherMelhorJogadaIA(Jogador ia) {
+        Carta melhorLider = ia.getMao().get(0);
+        List<Carta> melhorBando = List.of(melhorLider);
+
+        for (Carta candidata : ia.getMao()) {
+            List<Carta> bandoAtual = new ArrayList<>();
+            for (Carta carta : ia.getMao()) {
+                boolean combinaCor = carta.getCor().equalsIgnoreCase(candidata.getCor());
+                boolean combinaTribo = carta.getTribo().equalsIgnoreCase(candidata.getTribo());
+                if (combinaCor || combinaTribo) {
+                    bandoAtual.add(carta);
+                }
+            }
+            if (bandoAtual.size() > melhorBando.size()) {
+                melhorLider = candidata;
+                melhorBando = bandoAtual;
+            }
+        }
+        Regiao regiaoValida = escolherRegiaoValidaParaIA(ia, melhorLider, melhorBando.size());
+        if (regiaoValida == null) return null;
+        return new JogadaIA(melhorLider, melhorBando, regiaoValida);
+    }
+
+    /**
+     * Escolhe uma região onde a regra do N-ésimo marcador permita plantar.
+     * Tenta primeiro a região da cor do líder, depois as outras.
+     */
+    private Regiao escolherRegiaoValidaParaIA(Jogador ia, Carta lider, int tamanhoBando) {
+        Regiao preferida = tabuleiro.getRegiao(lider.getCor());
+        int tamanhoMinExtra = (lider instanceof com.projeto.ethnos.model.carta.Minotauro) ? 1 : 0;
+
+        if (preferida != null
+            && contarMarcadoresDoJogadorNaRegiao(ia, preferida) < tamanhoBando + tamanhoMinExtra) {
+            return preferida;
+        }
+        for (Regiao r : tabuleiro.getTodasRegioes()) {
+            if (contarMarcadoresDoJogadorNaRegiao(ia, r) < tamanhoBando + tamanhoMinExtra) {
+                return r;
+            }
+        }
+        return null;
+    }
+
+    private Carta escolherCartaMercadoParaIA(Jogador ia) {
+        for (Carta cm : mercado.getCartasDisponiveis()) {
+            for (Carta cMao : ia.getMao()) {
+                if (cm.getCor().equalsIgnoreCase(cMao.getCor())
+                    || cm.getTribo().equalsIgnoreCase(cMao.getTribo())) {
+                    return cm;
+                }
+            }
+        }
+        return null;
+    }
+
+    private static final class JogadaIA {
+        final Carta lider;
+        final List<Carta> bando;
+        final Regiao regiao;
+        JogadaIA(Carta l, List<Carta> b, Regiao r) { this.lider = l; this.bando = b; this.regiao = r; }
+    }
+
+    // ====================================================================
+    // Avanço de turno
+    // ====================================================================
+
+    private void proximoJogador() {
+        if (jogadores.isEmpty()) return;
+        int anterior = indiceJogadorAtual;
+        indiceJogadorAtual = (indiceJogadorAtual + 1) % jogadores.size();
+        if (anterior == jogadores.size() - 1 && indiceJogadorAtual == 0) {
+            rodadaAtual++;
+        }
+    }
+
+    // ====================================================================
+    // Getters de consulta para a UI
+    // ====================================================================
+
+    public int getEraAtual() { return eraAtual; }
+    public int getDragoesRevelados() { return dragoesRevelados; }
+    public int getRodadaAtual() { return rodadaAtual; }
+    public boolean isJogoFinalizado() { return jogoFinalizado; }
+    public String getUltimaAcao() { return ultimaAcao; }
+    public Jogador getJogadorAtual() { return jogadores.get(indiceJogadorAtual); }
+    public List<Jogador> getJogadores() { return List.copyOf(jogadores); }
+    public Baralho getBaralho() { return baralho; }
+    public Mercado getMercado() { return mercado; }
+    public Tabuleiro getTabuleiro() { return tabuleiro; }
+    public List<Jogador> getVencedores() { return List.copyOf(vencedores); }
+    public boolean isEmpateFinal() { return vencedores.size() > 1; }
+
+    public String getNomesVencedores() {
+        StringBuilder sb = new StringBuilder();
+        for (int i = 0; i < vencedores.size(); i++) {
+            sb.append(vencedores.get(i).getNome());
+            if (i < vencedores.size() - 1) sb.append(", ");
+        }
+        return sb.toString();
     }
 }
