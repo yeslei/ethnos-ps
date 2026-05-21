@@ -155,7 +155,7 @@ public class Partida {
         eraAtual++;
         dragoesRevelados = 0;
         baralho.prepararNovaEraComDragaoNaSegundaMetade();
-        revelarCartasRaca(setupInicialAtivo);
+        revelarCartasRaca(true);
         notifica();
     }
 
@@ -233,7 +233,6 @@ public class Partida {
                 jogador.getMao().add(comprada);
                 ultimaAcao = jogador.getNome() + " recrutou " + comprada;
             }
-            revelarCartasRaca();
         } else {
             ultimaAcao = "Sem cartas para recrutar";
         }

@@ -8,6 +8,7 @@ import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.control.Label;
 import javafx.scene.input.MouseEvent;
+import javafx.scene.layout.FlowPane;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.VBox;
 
@@ -18,7 +19,7 @@ import java.util.List;
  * View do Mercado. Implementa Assinante (GoF Observer) — recebe atualiza(p)
  * sempre que a Partida muda de estado.
  */
-public class MercadoView extends HBox implements Assinante {
+public class MercadoView extends VBox implements Assinante {
 
     private final Mercado mercadoModel;
     private final VBox deckCompra;
@@ -28,7 +29,7 @@ public class MercadoView extends HBox implements Assinante {
         this.mercadoModel = mercadoModel;
 
         this.setPadding(new Insets(10));
-        this.setSpacing(15);
+        this.setSpacing(10);
         this.setAlignment(Pos.CENTER);
         this.setStyle("-fx-background-color: " + UiPalette.getParchmentBackground()
             + "; -fx-border-color: " + UiPalette.getWoodBorder()
@@ -68,11 +69,14 @@ public class MercadoView extends HBox implements Assinante {
 
         Label titulo = new Label("Mercado de Cartas:");
         titulo.setStyle("-fx-font-weight: bold; -fx-font-size: 14px;");
-        this.getChildren().add(titulo);
+
+        FlowPane cartasPane = new FlowPane(10, 10);
+        cartasPane.setAlignment(Pos.CENTER);
+        cartasPane.setPrefWrapLength(900);
 
         for (Carta c : mercadoModel.getCartasDisponiveis()) {
             CartaView visualCarta = new CartaView(c);
-            this.getChildren().add(visualCarta);
+            cartasPane.getChildren().add(visualCarta);
             this.cartasVisuais.add(visualCarta);
 
             visualCarta.addEventHandler(MouseEvent.MOUSE_CLICKED, e -> {
@@ -84,7 +88,10 @@ public class MercadoView extends HBox implements Assinante {
             });
         }
 
-        this.getChildren().add(this.deckCompra);
+        HBox linhaMercado = new HBox(12, cartasPane, this.deckCompra);
+        linhaMercado.setAlignment(Pos.CENTER);
+
+        this.getChildren().addAll(titulo, linhaMercado);
     }
 
     public VBox getDeckCompra() {
